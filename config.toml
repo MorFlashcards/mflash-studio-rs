@@ -1,0 +1,34 @@
+# mflash-studio-rs configuration
+# Standardizing the "Aura" of your desktop native utility
+
+[ui]
+# Font sizes for the Flashcard View
+font_size_header = 40.0
+font_size_body = 22.0
+
+# Initial window dimensions on launch
+window_width = 900.0
+window_height = 600.0
+
+# Theme options: "dark" or "light" (Standardizing on your screenshots)
+theme = "dark"
+
+[audio]
+# Toggle the Text-to-Speech engine globally
+enabled = true
+# Speed of the voice (1.0 is normal, 1.5 is fast-study mode)
+rate = 1.0
+
+[plugins]
+# List the folder names of plugins you want to load from /plugins/
+# Keep this empty for the cleanest, "Zen" study experience
+enabled = []
+
+[shortcuts]
+# Keyboard mapping for power-user navigation
+next_card = "ArrowRight"
+prev_card = "ArrowLeft"
+next_list_item = "ArrowDown"
+prev_list_item = "ArrowUp"
+view_card = "Enter"
+back_to_list = "Escape"
