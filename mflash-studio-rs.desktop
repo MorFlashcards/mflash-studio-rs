@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Moribund Flash Studio
+Comment=A high-performance, local-first studio for managing .mflash decks
+Exec=mflash-studio-rs %f
+Icon=mflash-studio-rs
+Terminal=false
+Categories=Education;Utility;

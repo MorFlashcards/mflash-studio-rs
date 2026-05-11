@@ -1,0 +1,44 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="100" cy="100" r="98" fill="#1A202C" />
+
+  <path d="M70 70 A 30 30 0 0 1 130 70 V 120 Q 130 140 100 140 Q 70 140 70 120 Z" fill="#E2E8F0" stroke="#CBD5E0" stroke-width="2"/>
+  
+  <path d="M96 115 L100 110 L104 115 Q100 118 96 115" fill="#2D3748"/>
+  
+  <rect x="85" y="140" width="30" height="6" fill="#2D3748"/>
+  <path d="M88 146 A 2 2 0 0 0 88 152 H 112 A 2 2 0 0 0 112 146 H 88" fill="#CBD5E0"/>
+
+  <g transform="translate(0, 5)">
+    <path d="M55 85 A 25 25 0 0 1 145 85 V 100 H 55 Z" fill="#0A0A0A" stroke="#4A5568" stroke-width="2"/>
+    
+    <g transform="translate(75, 90)">
+      <g transform="scale(0.35)">
+        <g transform="rotate(-15 0 0)">
+          <rect x="-30" y="-35" width="60" height="70" rx="3" fill="#6B46C1" stroke="#553C9A" stroke-width="3" />
+        </g>
+        <g transform="rotate(15 0 0)">
+          <rect x="-30" y="-35" width="60" height="70" rx="3" fill="#38B2AC" stroke="#2C7A7B" stroke-width="3" />
+        </g>
+        <rect x="-32" y="-37.5" width="64" height="75" rx="3" fill="#00E5FF" stroke="#00B8D4" stroke-width="3" />
+        <line x1="-15" y1="-20" x2="15" y2="-20" stroke="#00B8D4" stroke-opacity="0.5" stroke-width="3" />
+        <line x1="-15" y1="-10" x2="10" y2="-10" stroke="#00B8D4" stroke-opacity="0.5" stroke-width="3" />
+      </g>
+    </g>
+    
+    <g transform="translate(125, 90)">
+      <g transform="scale(0.35)">
+        <g transform="rotate(-15 0 0)">
+          <rect x="-30" y="-35" width="60" height="70" rx="3" fill="#6B46C1" stroke="#553C9A" stroke-width="3" />
+        </g>
+        <g transform="rotate(15 0 0)">
+          <rect x="-30" y="-35" width="60" height="70" rx="3" fill="#38B2AC" stroke="#2C7A7B" stroke-width="3" />
+        </g>
+        <rect x="-32" y="-37.5" width="64" height="75" rx="3" fill="#00E5FF" stroke="#00B8D4" stroke-width="3" />
+        <line x1="-15" y1="-20" x2="15" y2="-20" stroke="#00B8D4" stroke-opacity="0.5" stroke-width="3" />
+        <line x1="-15" y1="-10" x2="10" y2="-10" stroke="#00B8D4" stroke-opacity="0.5" stroke-width="3" />
+      </g>
+    </g>
+    
+    <line x1="90" y1="90" x2="110" y2="90" stroke="#4A5568" stroke-width="3"/>
+  </g>
+</svg>

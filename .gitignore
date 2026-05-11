@@ -1,0 +1,10 @@
+/target/
+/pkg/
+/src/
+*.pkg.tar.zst
+*.log
+muda
+muda.pub
+*.pub
+id_ed25519*
+config.toml
