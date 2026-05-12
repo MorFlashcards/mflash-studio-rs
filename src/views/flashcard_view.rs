@@ -12,17 +12,17 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
     let mut action_add_card = false;
     let mut action_save = false;
 
-    // We calculate these fallback defaults outside the mutable card borrow below
+    // Fallback defaults from the v2 root deck
     let deck_term_fallback = app
         .deck
         .as_ref()
-        .and_then(|d| d.deck.term_language.clone())
+        .and_then(|d| d.default_term_lang.clone())
         .unwrap_or_else(|| "English".to_string());
 
     let deck_def_fallback = app
         .deck
         .as_ref()
-        .and_then(|d| d.deck.definition_language.clone())
+        .and_then(|d| d.default_def_lang.clone())
         .unwrap_or_else(|| "English".to_string());
 
     if let Some(deck) = &mut app.deck {
@@ -74,7 +74,7 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                                 .color(egui::Color32::GRAY),
                         );
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            let mut lang_str = card.term_language.clone().unwrap_or_default();
+                            let mut lang_str = card.term_lang.clone().unwrap_or_default();
 
                             let r = ui.add(
                                 egui::TextEdit::singleline(&mut lang_str)
@@ -85,7 +85,7 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                             ui.label(egui::RichText::new("🗣 Language:").weak().size(12.0));
 
                             if r.changed() {
-                                card.term_language = if lang_str.trim().is_empty() {
+                                card.term_lang = if lang_str.trim().is_empty() {
                                     None
                                 } else {
                                     Some(lang_str.trim().to_string())
@@ -117,7 +117,7 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                                 .color(egui::Color32::GRAY),
                         );
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            let mut lang_str = card.definition_language.clone().unwrap_or_default();
+                            let mut lang_str = card.def_lang.clone().unwrap_or_default();
 
                             let r = ui.add(
                                 egui::TextEdit::singleline(&mut lang_str)
@@ -128,7 +128,7 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                             ui.label(egui::RichText::new("🗣 Language:").weak().size(12.0));
 
                             if r.changed() {
-                                card.definition_language = if lang_str.trim().is_empty() {
+                                card.def_lang = if lang_str.trim().is_empty() {
                                     None
                                 } else {
                                     Some(lang_str.trim().to_string())
@@ -156,26 +156,31 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                         }
                     });
 
-                    if let Some(sentences) = &mut card.example_sentences {
-                        for (i, sentence) in sentences.iter_mut().enumerate() {
-                            ui.horizontal(|ui| {
-                                ui.label("•");
-                                let resp = ui.add(
-                                    egui::TextEdit::multiline(sentence)
-                                        .font(egui::TextStyle::Body)
-                                        .frame(false)
-                                        .desired_width(ui.available_width() - 30.0),
-                                );
+                    // Render Example enum list in edit mode
+                    for (i, example) in card.examples.iter_mut().enumerate() {
+                        ui.horizontal(|ui| {
+                            ui.label("•");
+                            
+                            let text_ref = match example {
+                                crate::models::Example::Text(s) => s,
+                                crate::models::Example::Detailed(info) => &mut info.text,
+                            };
 
-                                if resp.changed() {
-                                    json_needs_sync = true;
-                                }
+                            let resp = ui.add(
+                                egui::TextEdit::multiline(text_ref)
+                                    .font(egui::TextStyle::Body)
+                                    .frame(false)
+                                    .desired_width(ui.available_width() - 30.0),
+                            );
 
-                                if ui.button("❌").clicked() {
-                                    action_remove_sentence = Some(i);
-                                }
-                            });
-                        }
+                            if resp.changed() {
+                                json_needs_sync = true;
+                            }
+
+                            if ui.button("❌").clicked() {
+                                action_remove_sentence = Some(i);
+                            }
+                        });
                     }
                 } else {
                     // Static Reader Mode
@@ -189,15 +194,17 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                         egui::RichText::new(&card.definition).size(app.config.ui.font_size_body),
                     );
 
-                    if let Some(sentences) = &card.example_sentences {
-                        if !sentences.is_empty() {
-                            ui.add_space(15.0);
-                            ui.label(egui::RichText::new("Examples:").weak());
-                            for sentence in sentences {
-                                ui.label(
-                                    egui::RichText::new(format!("• \"{}\"", sentence)).italics(),
-                                );
-                            }
+                    if !card.examples.is_empty() {
+                        ui.add_space(15.0);
+                        ui.label(egui::RichText::new("Examples:").weak());
+                        for example in &card.examples {
+                            let text_ref = match example {
+                                crate::models::Example::Text(s) => s,
+                                crate::models::Example::Detailed(info) => &info.text,
+                            };
+                            ui.label(
+                                egui::RichText::new(format!("• \"{}\"", text_ref)).italics(),
+                            );
                         }
                     }
                 }
@@ -251,13 +258,24 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
         app.push_snapshot();
         if let Some(deck) = &mut app.deck {
             let new_card = crate::models::Card {
+                id: format!(
+                    "card_{}",
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_millis()
+                ),
                 term: String::new(),
                 definition: String::new(),
-                media: None,
-                term_language: None,
-                definition_language: None,
+                term_lang: None,
+                def_lang: None,
+                phonetic: None,
+                part_of_speech: None,
+                notes: None,
                 hyperlink: None,
-                example_sentences: Some(Vec::new()),
+                media: Vec::new(),
+                tags: Vec::new(),
+                examples: Vec::new(),
             };
             deck.cards.push(new_card);
             app.selected_index = deck.cards.len() - 1;
@@ -266,11 +284,18 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
         if let Ok(mut parsed_json) = serde_json::from_str::<serde_json::Value>(&app.raw_json) {
             if let Some(cards) = parsed_json.get_mut("cards").and_then(|c| c.as_array_mut()) {
                 let new_card_obj = serde_json::json!({
+                    "id": format!(
+                        "card_{}",
+                        std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_millis()
+                    ),
                     "term": "",
                     "definition": "",
-                    "term_language": null,
-                    "definition_language": null,
-                    "example_sentences": []
+                    "term_lang": null,
+                    "def_lang": null,
+                    "examples": []
                 });
                 cards.push(new_card_obj);
             }
@@ -287,15 +312,10 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
             let card = &mut deck.cards[app.selected_index];
 
             if action_add_sentence {
-                if card.example_sentences.is_none() {
-                    card.example_sentences = Some(Vec::new());
-                }
-                card.example_sentences.as_mut().unwrap().push(String::new());
+                card.examples.push(crate::models::Example::Text(String::new()));
             }
             if let Some(idx) = action_remove_sentence {
-                if let Some(sentences) = &mut card.example_sentences {
-                    sentences.remove(idx);
-                }
+                card.examples.remove(idx);
             }
         }
         json_needs_sync = true;
@@ -318,45 +338,36 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                                 serde_json::Value::String(card.definition.clone()),
                             );
 
-                            // NEW: Sync Language Edits to Raw JSON
-                            if let Some(tl) = &card.term_language {
+                            if let Some(tl) = &card.term_lang {
                                 card_obj.insert(
-                                    "term_language".to_string(),
+                                    "term_lang".to_string(),
                                     serde_json::Value::String(tl.clone()),
                                 );
                             } else {
-                                card_obj
-                                    .insert("term_language".to_string(), serde_json::Value::Null);
+                                card_obj.insert("term_lang".to_string(), serde_json::Value::Null);
                             }
 
-                            if let Some(dl) = &card.definition_language {
+                            if let Some(dl) = &card.def_lang {
                                 card_obj.insert(
-                                    "definition_language".to_string(),
+                                    "def_lang".to_string(),
                                     serde_json::Value::String(dl.clone()),
                                 );
                             } else {
-                                card_obj.insert(
-                                    "definition_language".to_string(),
-                                    serde_json::Value::Null,
-                                );
+                                card_obj.insert("def_lang".to_string(), serde_json::Value::Null);
                             }
 
-                            if let Some(sentences) = &card.example_sentences {
-                                card_obj.insert(
-                                    "example_sentences".to_string(),
-                                    serde_json::Value::Array(
-                                        sentences
-                                            .iter()
-                                            .map(|s| serde_json::Value::String(s.clone()))
-                                            .collect(),
-                                    ),
-                                );
-                            } else {
-                                card_obj.insert(
-                                    "example_sentences".to_string(),
-                                    serde_json::Value::Array(vec![]),
-                                );
-                            }
+                            // Sync Enum examples back to JSON
+                            let json_examples = card.examples.iter().map(|ex| {
+                                match ex {
+                                    crate::models::Example::Text(s) => serde_json::Value::String(s.clone()),
+                                    crate::models::Example::Detailed(info) => serde_json::json!(info),
+                                }
+                            }).collect::<Vec<_>>();
+                            
+                            card_obj.insert(
+                                "examples".to_string(),
+                                serde_json::Value::Array(json_examples),
+                            );
                         }
                     }
                 }
@@ -394,8 +405,12 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                 app.push_snapshot();
 
                 if let Some(deck) = &mut app.deck {
-                    deck.cards[app.selected_index].media =
-                        Some(crate::models::MediaInfo { path: path.clone() });
+                    deck.cards[app.selected_index].media = vec![crate::models::MediaInfo { 
+                        src: path.clone(),
+                        media_type: "image".to_string(),
+                        alt: None,
+                        description: None
+                    }];
                 }
 
                 if let Ok(mut parsed_json) =
@@ -407,7 +422,7 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                             if let Some(card_obj) = card_val.as_object_mut() {
                                 let mut new_media = serde_json::Map::new();
                                 new_media.insert(
-                                    "path".to_string(),
+                                    "src".to_string(),
                                     serde_json::Value::String(path.clone()),
                                 );
                                 new_media.insert(
@@ -415,17 +430,18 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                                     serde_json::Value::String("image".to_string()),
                                 );
 
-                                if let Some(old_media) =
-                                    card_obj.get("media").and_then(|m| m.as_object())
-                                {
-                                    if let Some(alt) = old_media.get("alt") {
-                                        new_media.insert("alt".to_string(), alt.clone());
+                                // Best effort to preserve alt tag if replacing media
+                                if let Some(media_arr) = card_obj.get("media").and_then(|m| m.as_array()) {
+                                    if let Some(first_media) = media_arr.first().and_then(|m| m.as_object()) {
+                                        if let Some(alt) = first_media.get("alt") {
+                                            new_media.insert("alt".to_string(), alt.clone());
+                                        }
                                     }
                                 }
 
                                 card_obj.insert(
                                     "media".to_string(),
-                                    serde_json::Value::Object(new_media),
+                                    serde_json::Value::Array(vec![serde_json::Value::Object(new_media)]),
                                 );
                             }
                         }
@@ -451,12 +467,8 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
         if let Some(deck) = &app.deck {
             let card = &deck.cards[app.selected_index];
 
-            let term_lang = card.term_language.as_deref().unwrap_or(&deck_term_fallback);
-
-            let def_lang = card
-                .definition_language
-                .as_deref()
-                .unwrap_or(&deck_def_fallback);
+            let term_lang = card.term_lang.as_deref().unwrap_or(&deck_term_fallback);
+            let def_lang = card.def_lang.as_deref().unwrap_or(&deck_def_fallback);
 
             app.audio.speak(&card.term, Some(term_lang), true);
             app.audio.speak(&card.definition, Some(def_lang), false);

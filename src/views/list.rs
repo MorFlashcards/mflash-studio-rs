@@ -4,7 +4,7 @@ use eframe::egui;
 pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui, ctx: &egui::Context) {
     ui.vertical_centered(|ui| {
         if let Some(data) = &app.deck {
-            ui.heading(egui::RichText::new(&data.deck.title).strong().size(24.0));
+            ui.heading(egui::RichText::new(&data.title).strong().size(24.0));
         }
     });
 

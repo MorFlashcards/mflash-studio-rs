@@ -93,8 +93,8 @@ impl MFlashStudioApp {
             return;
         }
 
-        if let Some(media_info) = &data.cards[self.selected_index].media {
-            let path = std::path::Path::new(&media_info.path);
+        if let Some(media_info) = data.cards[self.selected_index].media.first() {
+            let path = std::path::Path::new(&media_info.src);
 
             if path.is_absolute() && path.exists() {
                 if let Ok(bytes) = std::fs::read(path) {
@@ -114,7 +114,7 @@ impl MFlashStudioApp {
                 }
             }
 
-            self.current_texture = media::load_texture(ctx, &self.path, &media_info.path);
+            self.current_texture = media::load_texture(ctx, &self.path, &media_info.src);
         }
     }
 
