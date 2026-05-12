@@ -1,6 +1,3 @@
-cd ~/Projects/mflash-studio-rs
-
-cat > README.md <<'EOF'
 # MFlash Studio
 
 **MFlash Studio** is a native Rust editor for building, inspecting, and refining `.mflash` flashcard decks.
@@ -104,3 +101,22 @@ Run the app locally with:
 
 ```bash
 cargo run
+
+Format the code with:
+
+cargo fmt
+
+Check that the project builds with:
+
+cargo check
+Project Status
+
+MFlash Studio is currently experimental and under active development.
+
+Expect rough edges, goblin wiring, and occasional haunted drawers in the UI while the architecture settles.
+
+License
+
+Copyright © 2026.
+
+Part of the MorFlashcards / Moribund Institute ecosystem.
