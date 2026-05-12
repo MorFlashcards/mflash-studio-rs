@@ -1,9 +1,10 @@
-use eframe::egui;
 use crate::MFlashStudioApp;
+use eframe::egui;
 
 pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
     let mut go_back = false;
     let mut apply_changes = false;
+    let mut action_save = false; // NEW
 
     ui.horizontal(|ui| {
         ui.heading("Raw deck.json");
@@ -15,13 +16,15 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                 app.json_error = None;
                 go_back = true;
             }
-            
-            if ui.button("💾 Apply to Memory").clicked() {
+
+            // NEW: Updated to explicitly save to the physical file
+            if ui.button("💾 Apply & Save").clicked() {
                 apply_changes = true;
+                action_save = true;
             }
         });
     });
-    
+
     ui.separator();
 
     if let Some(err) = &app.json_error {
@@ -34,12 +37,10 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
             let line_count = app.raw_json.split('\n').count().max(1);
             ui.vertical(|ui| {
                 ui.spacing_mut().item_spacing.y = 0.0;
-                ui.add_space(2.0); 
+                ui.add_space(2.0);
 
                 for i in 1..=line_count {
-                    ui.label(egui::RichText::new(format!("{:3}", i))
-                        .monospace()
-                        .weak());
+                    ui.label(egui::RichText::new(format!("{:3}", i)).monospace().weak());
                 }
             });
 
@@ -47,8 +48,8 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
 
             let output = egui::TextEdit::multiline(&mut app.raw_json)
                 .font(egui::TextStyle::Monospace)
-                .code_editor() 
-                .desired_width(f32::INFINITY) 
+                .code_editor()
+                .desired_width(f32::INFINITY)
                 .frame(false)
                 .show(ui);
 
@@ -59,12 +60,12 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                 let s = range.secondary.ccursor.index;
                 let start = p.min(s);
                 let end = p.max(s);
-                
+
                 if start != end {
                     let chars: Vec<char> = app.raw_json.chars().collect();
                     let safe_start = start.min(chars.len());
                     let safe_end = end.min(chars.len());
-                    
+
                     app.last_selected_text = chars[safe_start..safe_end].iter().collect();
                     app.last_cursor_range = Some(safe_start..safe_end);
                 } else if response.clicked() {
@@ -78,9 +79,13 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                     if let Some(mut state) = egui::TextEdit::load_state(ui.ctx(), response.id) {
                         let ccursor_start = egui::text::CCursor::new(range.start);
                         let ccursor_end = egui::text::CCursor::new(range.end);
-                        
-                        // THE FIX: Updated to the new cursor API to silence the deprecation warning
-                        state.cursor.set_char_range(Some(egui::text::CCursorRange::two(ccursor_start, ccursor_end)));
+
+                        state
+                            .cursor
+                            .set_char_range(Some(egui::text::CCursorRange::two(
+                                ccursor_start,
+                                ccursor_end,
+                            )));
                         state.store(ui.ctx(), response.id);
                     }
                 }
@@ -89,7 +94,10 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
             response.context_menu(|ui| {
                 let has_selection = !app.last_selected_text.is_empty();
 
-                if ui.add_enabled(has_selection, egui::Button::new("✂ Cut Selection")).clicked() {
+                if ui
+                    .add_enabled(has_selection, egui::Button::new("✂ Cut Selection"))
+                    .clicked()
+                {
                     ui.output_mut(|o| o.copied_text = app.last_selected_text.clone());
                     if let Some(range) = &app.last_cursor_range {
                         let chars: Vec<char> = app.raw_json.chars().collect();
@@ -103,7 +111,10 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                     ui.close_menu();
                 }
 
-                if ui.add_enabled(has_selection, egui::Button::new("📄 Copy Selection")).clicked() {
+                if ui
+                    .add_enabled(has_selection, egui::Button::new("📄 Copy Selection"))
+                    .clicked()
+                {
                     ui.output_mut(|o| o.copied_text = app.last_selected_text.clone());
                     ui.close_menu();
                 }
@@ -130,7 +141,7 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                             } else {
                                 app.raw_json.push_str(&text);
                             }
-                            
+
                             app.last_selected_text.clear();
                             app.last_cursor_range = None;
                         }
@@ -139,7 +150,7 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                 }
 
                 ui.separator();
-                
+
                 if ui.button("✂ Cut All JSON").clicked() {
                     ui.output_mut(|o| o.copied_text = app.raw_json.clone());
                     app.raw_json.clear();
@@ -159,11 +170,17 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                 app.push_snapshot();
                 app.deck = Some(new_deck);
                 app.json_error = None;
-                
+
                 if let Some(d) = &app.deck {
                     app.selected_index = app.selected_index.min(d.cards.len().saturating_sub(1));
                 }
-                go_back = true; 
+
+                // NEW: Triggers physical save
+                if action_save {
+                    app.save_deck();
+                }
+
+                go_back = true;
             }
             Err(e) => {
                 app.json_error = Some(e.to_string());

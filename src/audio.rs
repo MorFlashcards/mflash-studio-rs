@@ -1,31 +1,75 @@
+pub mod bcp47;
+
+use crate::audio::bcp47::normalize_to_bcp47;
+use std::sync::mpsc::{self, Sender};
+use std::thread;
+use tts::Tts;
+
+pub enum AudioCommand {
+    Speak {
+        text: String,
+        language: Option<String>,
+        interrupt: bool,
+    },
+    Stop,
+}
+
 pub struct AudioEngine {
-    pub tts: Option<tts::Tts>,
+    tx: Sender<AudioCommand>,
 }
 
 impl AudioEngine {
     pub fn new() -> Self {
-        Self { tts: tts::Tts::default().ok() }
+        let (tx, rx) = mpsc::channel();
+
+        thread::spawn(move || {
+            let mut system_tts = Tts::default().ok();
+
+            while let Ok(command) = rx.recv() {
+                match command {
+                    AudioCommand::Speak {
+                        text,
+                        language,
+                        interrupt,
+                    } => {
+                        if let Some(tts) = &mut system_tts {
+                            let lang_str = language.as_deref().unwrap_or("en-US");
+                            let bcp47_code = normalize_to_bcp47(lang_str);
+
+                            if let Ok(voices) = tts.voices() {
+                                let matching_voice = voices.into_iter().find(|v| {
+                                    v.language() == bcp47_code
+                                        || v.language().starts_with(bcp47_code)
+                                });
+
+                                if let Some(voice) = matching_voice {
+                                    let _ = tts.set_voice(&voice);
+                                }
+                            }
+                            let _ = tts.speak(text, interrupt);
+                        }
+                    }
+                    AudioCommand::Stop => {
+                        if let Some(tts) = &mut system_tts {
+                            let _ = tts.stop();
+                        }
+                    }
+                }
+            }
+        });
+
+        Self { tx }
     }
 
-    /// Updated to accept the card's language field so it can switch accents
-    pub fn speak(&mut self, text: &str, language: Option<&str>) {
-        if let Some(tts) = &mut self.tts {
-            
-            // Normalize "lazy" JSON strings into strict ISO 639 codes
-            let _iso = match language.map(|l| l.to_lowercase()).as_deref() {
-                Some("english") => "en-US",
-                Some("spanish") => "es-ES",
-                Some("french")  => "fr-FR",
-                Some("german")  => "de-DE",
-                Some(code) => code, // If it's already an ISO code like "en", use it
-                None => "en-US",    // Fallback to English if the field is missing
-            };
+    pub fn speak(&self, text: &str, language: Option<&str>, interrupt: bool) {
+        let _ = self.tx.send(AudioCommand::Speak {
+            text: text.to_string(),
+            language: language.map(|s| s.to_string()),
+            interrupt,
+        });
+    }
 
-            // NOTE: To fully change the voice, you would iterate over tts.voices() 
-            // to find one matching the _iso code, then call tts.set_voice(&voice).
-            // For now, we prepare the architecture and use the default system voice.
-            
-            let _ = tts.speak(text, true);
-        }
+    pub fn stop(&self) {
+        let _ = self.tx.send(AudioCommand::Stop);
     }
 }

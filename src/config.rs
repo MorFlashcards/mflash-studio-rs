@@ -1,4 +1,3 @@
-
 use serde::Deserialize;
 use std::fs;
 
@@ -41,20 +40,31 @@ pub struct ShortcutsConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            ui: UiConfig { 
-                font_size_header: 40.0, font_size_body: 22.0, 
-                window_width: 900.0, window_height: 600.0, theme: "dark".to_string(),
+            ui: UiConfig {
+                font_size_header: 40.0,
+                font_size_body: 22.0,
+                window_width: 900.0,
+                window_height: 600.0,
+                theme: "dark".to_string(),
             },
-            audio: AudioConfig { enabled: true, rate: 1.0 },
+            audio: AudioConfig {
+                enabled: true,
+                rate: 1.0,
+            },
             plugins: PluginsConfig { enabled: vec![] },
             shortcuts: ShortcutsConfig {
-                next_card: "ArrowRight".to_string(), prev_card: "ArrowLeft".to_string(),
-                view_card: "Enter".to_string(), back_to_list: "Escape".to_string(),
+                next_card: "ArrowRight".to_string(),
+                prev_card: "ArrowLeft".to_string(),
+                view_card: "Enter".to_string(),
+                back_to_list: "Escape".to_string(),
             },
         }
     }
 }
 
 pub fn load_config() -> AppConfig {
-    fs::read_to_string("config.toml").ok().and_then(|c| toml::from_str(&c).ok()).unwrap_or_default()
+    fs::read_to_string("config.toml")
+        .ok()
+        .and_then(|c| toml::from_str(&c).ok())
+        .unwrap_or_default()
 }

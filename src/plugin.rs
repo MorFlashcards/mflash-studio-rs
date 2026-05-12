@@ -1,5 +1,5 @@
-use eframe::egui;
 use crate::models::Card;
+use eframe::egui;
 
 pub trait MFlashPlugin {
     fn name(&self) -> &str;
