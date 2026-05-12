@@ -38,8 +38,11 @@ impl AudioEngine {
 
                             if let Ok(voices) = tts.voices() {
                                 let matching_voice = voices.into_iter().find(|v| {
-                                    v.language() == bcp47_code
-                                        || v.language().starts_with(bcp47_code)
+                                    // Compare both as lowercase to ensure custom tags match flexibly
+                                    v.language().to_lowercase() == bcp47_code.to_lowercase()
+                                        || v.language()
+                                            .to_lowercase()
+                                            .starts_with(&bcp47_code.to_lowercase())
                                 });
 
                                 if let Some(voice) = matching_voice {

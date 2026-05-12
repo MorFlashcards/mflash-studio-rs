@@ -43,6 +43,6 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui, ctx: &egui::Context)
 
     if let Some(i) = next_selection {
         app.set_index(i, ctx);
-        app.mode = crate::ViewMode::Flashcard;
+        app.workspace = crate::Workspace::Flashcard;
     }
 }

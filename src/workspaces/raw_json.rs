@@ -189,6 +189,6 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
     }
 
     if go_back {
-        app.mode = crate::ViewMode::List;
+        app.workspace = crate::Workspace::List;
     }
 }

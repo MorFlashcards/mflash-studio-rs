@@ -94,50 +94,50 @@ pub const SUPPORTED_LANGUAGES: &[TtsLanguage] = &[
 ];
 
 /// Helper function to aggressively match loose input strings to a strict BCP-47 code.
-pub fn normalize_to_bcp47(input: &str) -> &'static str {
+pub fn normalize_to_bcp47(input: &str) -> String {
     // Clean the input: remove whitespace and make it lowercase
     // e.g., " Estonian " -> "estonian", "en-US" -> "en-us"
     let clean_input = input.trim().to_lowercase();
 
     match clean_input.as_str() {
         // --- English ---
-        "english" | "eng" | "en" | "en-us" | "en_us" => "en-US",
-        "english (uk)" | "en-gb" | "en_gb" => "en-GB",
+        "english" | "eng" | "en" | "en-us" | "en_us" => "en-US".to_string(),
+        "english (uk)" | "en-gb" | "en_gb" => "en-GB".to_string(),
 
         // --- Baltic & Nordic ---
-        "estonian" | "est" | "et" | "et-ee" => "et-EE",
-        "latvian" | "lav" | "lv" | "lv-lv" => "lv-LV",
-        "lithuanian" | "lit" | "lt" | "lt-lt" => "lt-LT",
-        "finnish" | "fin" | "fi" | "fi-fi" => "fi-FI",
-        "swedish" | "swe" | "sv" | "sv-se" => "sv-SE",
-        "icelandic" | "isl" | "is" | "is-is" => "is-IS",
+        "estonian" | "est" | "et" | "et-ee" => "et-EE".to_string(),
+        "latvian" | "lav" | "lv" | "lv-lv" => "lv-LV".to_string(),
+        "lithuanian" | "lit" | "lt" | "lt-lt" => "lt-LT".to_string(),
+        "finnish" | "fin" | "fi" | "fi-fi" => "fi-FI".to_string(),
+        "swedish" | "swe" | "sv" | "sv-se" => "sv-SE".to_string(),
+        "icelandic" | "isl" | "is" | "is-is" => "is-IS".to_string(),
 
         // --- Western European ---
-        "spanish" | "spa" | "es" | "es-es" => "es-ES",
-        "french" | "fra" | "fr" | "fr-fr" => "fr-FR",
-        "german" | "deu" | "de" | "de-de" => "de-DE",
-        "italian" | "ita" | "it" | "it-it" => "it-IT",
-        "dutch" | "nld" | "nl" | "nl-nl" => "nl-NL",
-        "portuguese" | "por" | "pt" | "pt-br" | "pt-pt" => "pt-PT",
+        "spanish" | "spa" | "es" | "es-es" => "es-ES".to_string(),
+        "french" | "fra" | "fr" | "fr-fr" => "fr-FR".to_string(),
+        "german" | "deu" | "de" | "de-de" => "de-DE".to_string(),
+        "italian" | "ita" | "it" | "it-it" => "it-IT".to_string(),
+        "dutch" | "nld" | "nl" | "nl-nl" => "nl-NL".to_string(),
+        "portuguese" | "por" | "pt" | "pt-br" | "pt-pt" => "pt-PT".to_string(),
 
         // --- Eastern European ---
-        "russian" | "rus" | "ru" | "ru-ru" => "ru-RU",
-        "polish" | "pol" | "pl" | "pl-pl" => "pl-PL",
-        "ukrainian" | "ukr" | "uk" | "uk-ua" => "uk-UA",
+        "russian" | "rus" | "ru" | "ru-ru" => "ru-RU".to_string(),
+        "polish" | "pol" | "pl" | "pl-pl" => "pl-PL".to_string(),
+        "ukrainian" | "ukr" | "uk" | "uk-ua" => "uk-UA".to_string(),
 
         // --- Asian ---
-        "japanese" | "jpn" | "ja" | "ja-jp" => "ja-JP",
-        "korean" | "kor" | "ko" | "ko-kr" => "ko-KR",
-        "chinese" | "mandarin" | "zho" | "zh" | "zh-cn" => "zh-CN",
+        "japanese" | "jpn" | "ja" | "ja-jp" => "ja-JP".to_string(),
+        "korean" | "kor" | "ko" | "ko-kr" => "ko-KR".to_string(),
+        "chinese" | "mandarin" | "zho" | "zh" | "zh-cn" => "zh-CN".to_string(),
 
         // --- Classical ---
-        "latin" | "lat" | "la" => "la",
-        "greek" | "ell" | "el" | "el-gr" => "el-GR",
-        "hebrew" | "heb" | "he" | "he-il" => "he-IL",
+        "latin" | "lat" | "la" => "la".to_string(),
+        "greek" | "ell" | "el" | "el-gr" => "el-GR".to_string(),
+        "hebrew" | "heb" | "he" | "he-il" => "he-IL".to_string(),
 
         // --- Fallback ---
-        // If they typed something we don't recognize, or left it blank,
-        // default to en-US so the audio engine doesn't panic.
-        _ => "en-US",
+        // If empty, return English. Otherwise, pass their custom tag through!
+        "" => "en-US".to_string(),
+        _ => input.trim().to_string(),
     }
 }

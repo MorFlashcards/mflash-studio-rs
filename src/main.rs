@@ -7,13 +7,14 @@ mod models;
 mod plugin;
 mod plugins;
 mod sfx;
-mod views;
+mod workspaces;
 
 use crate::plugin::MFlashPlugin;
 use eframe::egui;
 
 #[derive(PartialEq)]
-pub enum ViewMode {
+pub enum Workspace {
+    Deck,
     List,
     Flashcard,
     RawJson,
@@ -31,9 +32,10 @@ pub struct MFlashStudioApp {
     pub deck: Option<models::MFlashDeck>,
     pub raw_json: String,
     pub json_error: Option<String>,
-    pub mode: ViewMode,
+    pub workspace: Workspace,
     pub selected_index: usize,
     pub search_query: String,
+    pub lang_search_query: String,
     pub audio: audio::AudioEngine,
     pub sfx: sfx::SfxEngine,
     pub config: config::AppConfig,
@@ -50,10 +52,18 @@ pub struct MFlashStudioApp {
     pub show_images: bool,
     pub show_settings: bool,
     pub settings_category: String,
+
+    pub show_lang_codes: bool,
+    pub show_phonetic: bool,
+    pub show_part_of_speech: bool,
+    pub show_notes: bool,
+    pub show_tags: bool,
+
+    pub enable_tts: bool,
+    pub enable_media_audio: bool,
 }
 
 impl MFlashStudioApp {
-    // NEW: Centralized save method that can be called from any view
     pub fn save_deck(&mut self) {
         if !self.path.is_empty() {
             match models::save_mflash(&self.path, &self.path, &self.raw_json) {
@@ -186,9 +196,10 @@ fn main() -> eframe::Result<()> {
                 deck,
                 raw_json,
                 json_error: None,
-                mode: ViewMode::List,
+                workspace: Workspace::List,
                 selected_index: 0,
                 search_query: String::new(),
+                lang_search_query: String::new(),
                 audio: audio::AudioEngine::new(),
                 sfx: sfx::SfxEngine::new(),
                 config,
@@ -202,6 +213,13 @@ fn main() -> eframe::Result<()> {
                 show_images: true,
                 show_settings: false,
                 settings_category: "Flashcards".to_string(),
+                show_lang_codes: false,
+                show_phonetic: false,
+                show_part_of_speech: false,
+                show_notes: false,
+                show_tags: false,
+                enable_tts: true,
+                enable_media_audio: true,
             };
             app.load_image(&cc.egui_ctx);
             Box::new(app)
@@ -213,7 +231,12 @@ impl eframe::App for MFlashStudioApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
+                // FILE MENU
                 ui.menu_button("File", |ui| {
+                    if ui.button("New Deck...").clicked() {
+                        // TODO: Implement New
+                        ui.close_menu();
+                    }
                     if ui.button("Open Deck...").clicked() {
                         if let Some(path) = rfd::FileDialog::new()
                             .add_filter("MFlash Deck", &["mflash"])
@@ -235,61 +258,131 @@ impl eframe::App for MFlashStudioApp {
                     }
                     ui.separator();
                     if ui.button("Save").clicked() {
-                        self.save_deck(); // Now uses centralized method
+                        self.save_deck();
+                        ui.close_menu();
+                    }
+                    if ui.button("Close Deck").clicked() {
+                        // TODO: Implement Close
                         ui.close_menu();
                     }
                     ui.separator();
-                    if ui.button("Quit").clicked() {
+                    if ui.button("Exit").clicked() {
                         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                     }
                 });
 
+                // EDIT MENU
                 ui.menu_button("Edit", |ui| {
-                    if ui
-                        .add_enabled(!self.undo_stack.is_empty(), egui::Button::new("⮜ Undo"))
-                        .clicked()
-                    {
+                    if ui.add_enabled(!self.undo_stack.is_empty(), egui::Button::new("⮜ Undo")).clicked() {
                         self.undo(ctx);
                         ui.close_menu();
                     }
-                    if ui
-                        .add_enabled(!self.redo_stack.is_empty(), egui::Button::new("⮞ Redo"))
-                        .clicked()
-                    {
+                    if ui.add_enabled(!self.redo_stack.is_empty(), egui::Button::new("⮞ Redo")).clicked() {
                         self.redo(ctx);
                         ui.close_menu();
                     }
-                });
-
-                ui.menu_button("View", |ui| {
-                    if ui
-                        .selectable_label(self.mode == ViewMode::List, "List View")
-                        .clicked()
-                    {
-                        self.mode = ViewMode::List;
+                    ui.separator();
+                    if ui.button("Cut").clicked() {
+                        // TODO: Global Cut
                         ui.close_menu();
                     }
-                    if ui
-                        .selectable_label(self.mode == ViewMode::Flashcard, "Flashcard Studio")
-                        .clicked()
-                    {
-                        self.mode = ViewMode::Flashcard;
-                        self.load_image(ctx);
+                    if ui.button("Copy").clicked() {
+                        // TODO: Global Copy
+                        ui.close_menu();
+                    }
+                    if ui.button("Paste").clicked() {
+                        // TODO: Global Paste
                         ui.close_menu();
                     }
                     ui.separator();
-                    if ui
-                        .selectable_label(self.mode == ViewMode::RawJson, "See Raw JSON")
-                        .clicked()
-                    {
-                        self.mode = ViewMode::RawJson;
+                    if ui.button("Preferences / Settings").clicked() {
+                        self.show_settings = true;
                         ui.close_menu();
                     }
                 });
 
-                // A direct button on the menu bar, no dropdown!
-                if ui.button("⚙ Settings").clicked() {
+                // VIEW MENU
+                ui.menu_button("View", |ui| {
+                    if ui.button("Zoom In").clicked() {
+                        // TODO
+                        ui.close_menu();
+                    }
+                    if ui.button("Zoom Out").clicked() {
+                        // TODO
+                        ui.close_menu();
+                    }
+                    ui.separator();
+                    if ui.button("Fullscreen").clicked() {
+                        // TODO
+                        ui.close_menu();
+                    }
+                    if ui.button("Toggle UI Elements").clicked() {
+                        // TODO
+                        ui.close_menu();
+                    }
+                });
+
+                // TOOLS MENU
+                ui.menu_button("Tools", |ui| {
+                    if ui.button("Plugin Manager").clicked() {
+                        // TODO
+                        ui.close_menu();
+                    }
+                    if ui.button("Deck Exporter").clicked() {
+                        // TODO
+                        ui.close_menu();
+                    }
+                    if ui.button("Media Manager").clicked() {
+                        // TODO
+                        ui.close_menu();
+                    }
+                });
+
+                // HELP MENU
+                ui.menu_button("Help", |ui| {
+                    if ui.button("Documentation").clicked() {
+                        // TODO
+                        ui.close_menu();
+                    }
+                    if ui.button("Discord Server").clicked() {
+                        // TODO
+                        ui.close_menu();
+                    }
+                    ui.separator();
+                    if ui.button("About").clicked() {
+                        // TODO
+                        ui.close_menu();
+                    }
+                });
+
+                // TOP LEVEL SETTINGS (Doubling up)
+                if ui.button("Settings").clicked() {
                     self.show_settings = true;
+                }
+            });
+        });
+
+        egui::TopBottomPanel::top("workspace_bar").show(ctx, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                ui.spacing_mut().item_spacing.x = 6.0;
+                
+                ui.label(egui::RichText::new("Workspaces:").weak());
+
+                if ui.selectable_label(self.workspace == Workspace::Deck, "Deck").clicked() {
+                    self.workspace = Workspace::Deck;
+                }
+
+                if ui.selectable_label(self.workspace == Workspace::List, "List View").clicked() {
+                    self.workspace = Workspace::List;
+                }
+
+                if ui.selectable_label(self.workspace == Workspace::Flashcard, "Flashcard Studio").clicked() {
+                    self.workspace = Workspace::Flashcard;
+                    self.load_image(ctx);
+                }
+
+                if ui.selectable_label(self.workspace == Workspace::RawJson, "Raw JSON").clicked() {
+                    self.workspace = Workspace::RawJson;
                 }
             });
         });
@@ -317,14 +410,15 @@ impl eframe::App for MFlashStudioApp {
                 ui.centered_and_justified(|ui| ui.label("No deck loaded."));
                 return;
             }
-            match self.mode {
-                ViewMode::List => views::list::render(self, ui, ctx),
-                ViewMode::Flashcard => views::flashcard_view::render(self, ui),
-                ViewMode::RawJson => views::raw_json::render(self, ui),
+
+            match self.workspace {
+                Workspace::Deck => workspaces::deck::render(self, ui),
+                Workspace::List => workspaces::list::render(self, ui, ctx),
+                Workspace::Flashcard => workspaces::flashcards::render(self, ui),
+                Workspace::RawJson => workspaces::raw_json::render(self, ui),
             }
         });
 
-        // Render the settings window if it's toggled open
-        views::settings::render(self, ctx);
+        workspaces::settings::render(self, ctx);
     }
 }
