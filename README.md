@@ -14,7 +14,7 @@ Current goals include:
 - Edit flashcard content in a native desktop interface.
 - View decks as lists, individual flashcards, or raw JSON.
 - Support undo and redo while editing.
-- Provide configurable Studio Preferences.
+- Provide configurable Studio Settings.
 - Support audio and text-to-speech settings for multilingual cards.
 - Prepare the `.mflash` format for deeper OS integration later.
 
@@ -73,7 +73,7 @@ The audio system is still in development, but the settings UI is being built aro
 
 MFlash Studio is part of a larger `.mflash` ecosystem.
 
-### `mflash-spec`
+### [`mflash-spec`](https://github.com/MoribundMurdoch/mflash-spec)
 
 The source-of-truth specification for the `.mflash` deck format.
 
@@ -81,7 +81,7 @@ The source-of-truth specification for the `.mflash` deck format.
 
 A lightweight companion flashcard app built with Tauri and JavaScript.
 
-### `mflash-os-integrations`
+### [`mflash-os-integrations`](https://github.com/MoribundMurdoch/mflash-os-integrations)
 
 Native system integrations for `.mflash` files, including MIME types and future thumbnail generation.
 
@@ -97,25 +97,25 @@ Planned or current configuration areas include:
 
 ## Development
 
-Run the app locally with:
+Run the app locally:
 
-```bash
-cargo run
+    cargo run
 
-Format the code with:
+Format the code:
 
-cargo fmt
+    cargo fmt
 
-Check that the project builds with:
+Check that the project builds:
 
-cargo check
-Project Status
+    cargo check
+
+## Project Status
 
 MFlash Studio is currently experimental and under active development.
 
 Expect rough edges, goblin wiring, and occasional haunted drawers in the UI while the architecture settles.
 
-License
+## License
 
 Copyright © 2026.
 
