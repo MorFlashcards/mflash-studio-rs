@@ -1,23 +1,118 @@
 use crate::MFlashStudioApp;
 use eframe::egui;
 
+fn update_find_matches(app: &mut MFlashStudioApp) {
+    app.find_matches.clear();
+
+    if app.find_query.is_empty() {
+        app.current_match_idx = 0;
+        return;
+    }
+
+    if app.find_use_regex {
+        let mut builder = regex::RegexBuilder::new(&app.find_query);
+        builder.case_insensitive(!app.find_case_sensitive);
+
+        if let Ok(re) = builder.build() {
+            for mat in re.find_iter(&app.raw_json) {
+                app.find_matches.push(mat.start()..mat.end());
+            }
+        }
+    } else {
+        let haystack = if app.find_case_sensitive {
+            app.raw_json.clone()
+        } else {
+            app.raw_json.to_ascii_lowercase()
+        };
+
+        let needle = if app.find_case_sensitive {
+            app.find_query.clone()
+        } else {
+            app.find_query.to_ascii_lowercase()
+        };
+
+        if needle.is_empty() {
+            app.current_match_idx = 0;
+            return;
+        }
+
+        let mut start = 0;
+
+        while start <= haystack.len() {
+            if let Some(idx) = haystack[start..].find(&needle) {
+                let actual_idx = start + idx;
+                app.find_matches
+                    .push(actual_idx..(actual_idx + needle.len()));
+                start = actual_idx + needle.len();
+            } else {
+                break;
+            }
+        }
+    }
+
+    if app.find_matches.is_empty() {
+        app.current_match_idx = 0;
+    } else if app.current_match_idx >= app.find_matches.len() {
+        app.current_match_idx = app.find_matches.len() - 1;
+    }
+}
+
+fn replace_all_case_insensitive_ascii(text: &str, find: &str, replace: &str) -> String {
+    if find.is_empty() {
+        return text.to_string();
+    }
+
+    let haystack = text.to_ascii_lowercase();
+    let needle = find.to_ascii_lowercase();
+
+    let mut result = String::new();
+    let mut last = 0;
+    let mut start = 0;
+
+    while start <= haystack.len() {
+        if let Some(idx) = haystack[start..].find(&needle) {
+            let actual_idx = start + idx;
+
+            result.push_str(&text[last..actual_idx]);
+            result.push_str(replace);
+
+            start = actual_idx + needle.len();
+            last = start;
+        } else {
+            break;
+        }
+    }
+
+    result.push_str(&text[last..]);
+    result
+}
+
+fn build_find_regex(app: &MFlashStudioApp) -> Option<regex::Regex> {
+    let mut builder = regex::RegexBuilder::new(&app.find_query);
+    builder.case_insensitive(!app.find_case_sensitive);
+    builder.build().ok()
+}
+
 pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
     let mut go_back = false;
     let mut apply_changes = false;
-    let mut action_save = false; // NEW
+    let mut action_save = false;
 
     ui.horizontal(|ui| {
         ui.heading("Raw deck.json");
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if ui.button("⮜ Cancel & Back").clicked() {
-                if let Ok(json) = serde_json::to_string_pretty(&app.deck) {
-                    app.raw_json = json;
+                if let Some(deck) = &app.deck {
+                    if let Ok(json) = serde_json::to_string_pretty(deck) {
+                        app.raw_json = json;
+                    }
+                } else {
+                    app.raw_json.clear();
                 }
                 app.json_error = None;
                 go_back = true;
             }
 
-            // NEW: Updated to explicitly save to the physical file
             if ui.button("💾 Apply & Save").clicked() {
                 apply_changes = true;
                 action_save = true;
@@ -26,6 +121,116 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
     });
 
     ui.separator();
+
+    if app.find_visible {
+        egui::Frame::window(ui.style()).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                let find_changed = ui
+                    .add(
+                        egui::TextEdit::singleline(&mut app.find_query)
+                            .hint_text("Find")
+                            .desired_width(220.0),
+                    )
+                    .changed();
+
+                let case_changed = ui
+                    .selectable_label(app.find_case_sensitive, "Aa")
+                    .on_hover_text("Case Sensitive")
+                    .clicked();
+
+                if case_changed {
+                    app.find_case_sensitive = !app.find_case_sensitive;
+                }
+
+                let regex_changed = ui
+                    .selectable_label(app.find_use_regex, ".*")
+                    .on_hover_text("Use Regular Expression")
+                    .clicked();
+
+                if regex_changed {
+                    app.find_use_regex = !app.find_use_regex;
+                }
+
+                if find_changed || case_changed || regex_changed {
+                    app.current_match_idx = 0;
+                    update_find_matches(app);
+                }
+
+                let match_count = app.find_matches.len();
+
+                if match_count > 0 {
+                    ui.label(format!("{} of {}", app.current_match_idx + 1, match_count));
+                } else if app.find_use_regex
+                    && !app.find_query.is_empty()
+                    && build_find_regex(app).is_none()
+                {
+                    ui.label(egui::RichText::new("Invalid regex").color(egui::Color32::RED));
+                } else {
+                    ui.label(egui::RichText::new("No results").color(egui::Color32::RED));
+                }
+
+                if ui.button("⮝").clicked() && match_count > 0 {
+                    app.current_match_idx = (app.current_match_idx + match_count - 1) % match_count;
+                }
+
+                if ui.button("⮟").clicked() && match_count > 0 {
+                    app.current_match_idx = (app.current_match_idx + 1) % match_count;
+                }
+
+                if ui.button("❌").clicked() {
+                    app.find_visible = false;
+                }
+            });
+
+            ui.horizontal(|ui| {
+                ui.add(
+                    egui::TextEdit::singleline(&mut app.replace_query)
+                        .hint_text("Replace")
+                        .desired_width(220.0),
+                );
+
+                if ui.button("Replace").clicked() && !app.find_matches.is_empty() {
+                    let range = app.find_matches[app.current_match_idx].clone();
+
+                    if app.find_use_regex {
+                        if let Some(re) = build_find_regex(app) {
+                            let replacement = re
+                                .replace(&app.raw_json[range.clone()], app.replace_query.as_str())
+                                .to_string();
+
+                            app.raw_json.replace_range(range, &replacement);
+                        }
+                    } else {
+                        app.raw_json.replace_range(range, &app.replace_query);
+                    }
+
+                    update_find_matches(app);
+                }
+
+                if ui.button("Replace All").clicked() && !app.find_query.is_empty() {
+                    if app.find_use_regex {
+                        if let Some(re) = build_find_regex(app) {
+                            app.raw_json = re
+                                .replace_all(&app.raw_json, app.replace_query.as_str())
+                                .to_string();
+                        }
+                    } else if app.find_case_sensitive {
+                        app.raw_json = app.raw_json.replace(&app.find_query, &app.replace_query);
+                    } else {
+                        app.raw_json = replace_all_case_insensitive_ascii(
+                            &app.raw_json,
+                            &app.find_query,
+                            &app.replace_query,
+                        );
+                    }
+
+                    update_find_matches(app);
+                }
+            });
+        });
+
+        ui.add_space(8.0);
+    }
 
     if let Some(err) = &app.json_error {
         ui.label(egui::RichText::new(format!("⚠️ JSON Error: {}", err)).color(egui::Color32::RED));
@@ -54,6 +259,10 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                 .show(ui);
 
             let response = output.response.clone();
+
+            if response.changed() && app.find_visible {
+                update_find_matches(app);
+            }
 
             if let Some(range) = output.cursor_range {
                 let p = range.primary.ccursor.index;
@@ -108,6 +317,11 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                     }
                     app.last_selected_text.clear();
                     app.last_cursor_range = None;
+
+                    if app.find_visible {
+                        update_find_matches(app);
+                    }
+
                     ui.close_menu();
                 }
 
@@ -144,6 +358,10 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
 
                             app.last_selected_text.clear();
                             app.last_cursor_range = None;
+
+                            if app.find_visible {
+                                update_find_matches(app);
+                            }
                         }
                     }
                     ui.close_menu();
@@ -154,8 +372,14 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                 if ui.button("✂ Cut All JSON").clicked() {
                     ui.output_mut(|o| o.copied_text = app.raw_json.clone());
                     app.raw_json.clear();
+
+                    if app.find_visible {
+                        update_find_matches(app);
+                    }
+
                     ui.close_menu();
                 }
+
                 if ui.button("📄 Copy All JSON").clicked() {
                     ui.output_mut(|o| o.copied_text = app.raw_json.clone());
                     ui.close_menu();
@@ -175,7 +399,6 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                     app.selected_index = app.selected_index.min(d.cards.len().saturating_sub(1));
                 }
 
-                // NEW: Triggers physical save
                 if action_save {
                     app.save_deck();
                 }

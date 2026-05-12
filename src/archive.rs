@@ -9,7 +9,7 @@ struct IngestItem {
     internal_path: String,
 }
 
-// --- FILE I/O & MIGRATION ---
+// --- FILE I/O ---
 
 pub fn load_mflash(path: &str) -> Option<(MFlashDeck, String)> {
     load_mflash_result(path).ok()
@@ -18,18 +18,15 @@ pub fn load_mflash(path: &str) -> Option<(MFlashDeck, String)> {
 fn load_mflash_result(path: &str) -> Result<(MFlashDeck, String), Box<dyn std::error::Error>> {
     let contents = read_deck_json(path)?;
 
-    // Parse as raw value first so old V2 decks can be normalized before deserialization.
-    let value: serde_json::Value = serde_json::from_str(&contents)?;
-    let version = value.get("version").and_then(|v| v.as_u64()).unwrap_or(2);
+    // Deserialize directly into v3 MFlashDeck.
+    let deck: MFlashDeck = serde_json::from_str(&contents)?;
 
-    let normalized_value = match version {
-        2 => crate::migration::migrate_v2_value_to_v3(value),
-        _ => value,
-    };
+    // Strictly enforce version 3.
+    if deck.version != 3 {
+        return Err("Unsupported deck version. Please use a v3 deck.".into());
+    }
 
-    let deck: MFlashDeck = serde_json::from_value(normalized_value)?;
     let normalized_json = serde_json::to_string_pretty(&deck)?;
-
     Ok((deck, normalized_json))
 }
 

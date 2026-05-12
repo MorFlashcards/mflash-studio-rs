@@ -21,6 +21,8 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui, ctx: &egui::Context)
                 if !app.search_query.is_empty()
                     && !card
                         .term
+                        .as_deref()
+                        .unwrap_or("")
                         .to_lowercase()
                         .contains(&app.search_query.to_lowercase())
                 {
@@ -29,7 +31,7 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui, ctx: &egui::Context)
                 let is_selected = i == app.selected_index;
                 let response = ui.add(egui::SelectableLabel::new(
                     is_selected,
-                    format!("{}: {}", i + 1, card.term),
+                    format!("{}: {}", i + 1, card.term.as_deref().unwrap_or("(Untitled)")),
                 ));
                 if response.clicked() {
                     next_selection = Some(i);

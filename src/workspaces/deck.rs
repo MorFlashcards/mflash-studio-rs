@@ -20,8 +20,8 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
     ui.separator();
 
     // Prefer the model field, then raw JSON, then a likely image already inside the .mflash package.
-    let model_cover_path = app.deck.as_ref().and_then(|deck| deck.cover_media.clone());
-    let raw_json_cover_path = root_string_from_raw_json(&app.raw_json, "cover_media");
+    let model_cover_path = app.deck.as_ref().and_then(|deck| deck.cover.as_ref().map(|c| c.src.clone()));
+    let raw_json_cover_path = root_media_src_from_raw_json(&app.raw_json, "cover");
     let discovered_cover_path = if model_cover_path.is_none() && raw_json_cover_path.is_none() {
         discover_cover_media_in_package(&app.path)
     } else {
@@ -171,19 +171,19 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                     }
 
                     if discovered_cover_path.as_deref() == Some(cover_path.as_str())
-                        && deck.cover_media.is_none()
+                        && deck.cover.is_none()
                     {
                         ui.add_space(8.0);
                         ui.horizontal(|ui| {
                             ui.label(
                                 egui::RichText::new(
-                                    "Found this image inside the .mflash package, but cover_media is not set.",
+                                    "Found this image inside the .mflash package, but cover is not set.",
                                 )
                                 .weak()
                                 .italics(),
                             );
 
-                            if ui.button("Use as cover_media").clicked() {
+                            if ui.button("Use as cover").clicked() {
                                 adopt_discovered_cover = Some(cover_path.clone());
                             }
                         });
@@ -193,7 +193,7 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
 
                     ui.horizontal(|ui| {
                         if ui.button("🗑 Remove cover").clicked() {
-                            deck.cover_media = None;
+                            deck.cover = None;
                             json_needs_sync = true;
                         }
 
@@ -252,7 +252,14 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
         app.push_snapshot();
 
         if let Some(deck) = &mut app.deck {
-            deck.cover_media = Some(path);
+            deck.cover = Some(crate::models::MediaInfo {
+                id: None,
+                src: path,
+                media_type: "image".to_string(),
+                role: Some("cover".to_string()),
+                alt: None,
+                description: None,
+            });
         }
 
         sync_raw_json_from_deck(app);
@@ -262,7 +269,14 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
         app.push_snapshot();
 
         if let Some(deck) = &mut app.deck {
-            deck.cover_media = Some(path);
+            deck.cover = Some(crate::models::MediaInfo {
+                id: None,
+                media_type: "image".to_string(),
+                role: Some("cover".to_string()),
+                src: path,
+                alt: Some("Deck cover image".to_string()),
+                description: None,
+            });
         }
 
         sync_raw_json_from_deck(app);
@@ -285,10 +299,16 @@ fn sync_raw_json_from_deck(app: &mut MFlashStudioApp) {
     }
 }
 
-fn root_string_from_raw_json(raw_json: &str, key: &str) -> Option<String> {
+fn root_media_src_from_raw_json(raw_json: &str, key: &str) -> Option<String> {
     serde_json::from_str::<serde_json::Value>(raw_json)
         .ok()
-        .and_then(|value| value.get(key).and_then(|v| v.as_str()).map(str::to_string))
+        .and_then(|value| {
+            value
+                .get(key)
+                .and_then(|media| media.get("src"))
+                .and_then(|src| src.as_str())
+                .map(str::to_string)
+        })
         .filter(|s| !s.trim().is_empty())
 }
 

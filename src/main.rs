@@ -3,11 +3,12 @@
 mod audio;
 mod config;
 mod media;
-mod models;
 mod plugin;
 mod plugins;
 mod sfx;
 mod workspaces;
+pub mod archive;
+pub mod models;
 
 use crate::plugin::MFlashPlugin;
 use eframe::egui;
@@ -17,6 +18,7 @@ pub enum Workspace {
     Deck,
     List,
     Flashcard,
+    Media,
     RawJson,
 }
 
@@ -36,6 +38,15 @@ pub struct MFlashStudioApp {
     pub selected_index: usize,
     pub search_query: String,
     pub lang_search_query: String,
+
+    pub find_visible: bool,
+    pub find_query: String,
+    pub replace_query: String,
+    pub find_use_regex: bool,
+    pub find_case_sensitive: bool,
+    pub find_matches: Vec<std::ops::Range<usize>>,
+    pub current_match_idx: usize,
+
     pub audio: audio::AudioEngine,
     pub sfx: sfx::SfxEngine,
     pub config: config::AppConfig,
@@ -66,7 +77,7 @@ pub struct MFlashStudioApp {
 impl MFlashStudioApp {
     pub fn save_deck(&mut self) {
         if !self.path.is_empty() {
-            match models::save_mflash(&self.path, &self.path, &self.raw_json) {
+            match crate::archive::save_mflash(&self.path, &self.path, &self.raw_json) {
                 Ok(_) => {
                     self.json_error = None;
                     self.sfx.play(crate::sfx::SoundEffect::Save);
@@ -171,7 +182,7 @@ fn main() -> eframe::Result<()> {
     let config = config::load_config();
 
     let (deck, raw_json) = if !path.is_empty() {
-        models::load_mflash(&path)
+        crate::archive::load_mflash(&path)
             .map(|(d, j)| (Some(d), j))
             .unwrap_or((None, String::new()))
     } else {
@@ -200,6 +211,15 @@ fn main() -> eframe::Result<()> {
                 selected_index: 0,
                 search_query: String::new(),
                 lang_search_query: String::new(),
+
+                find_visible: false,
+                find_query: String::new(),
+                replace_query: String::new(),
+                find_use_regex: false,
+                find_case_sensitive: false,
+                find_matches: Vec::new(),
+                current_match_idx: 0,
+
                 audio: audio::AudioEngine::new(),
                 sfx: sfx::SfxEngine::new(),
                 config,
@@ -243,7 +263,9 @@ impl eframe::App for MFlashStudioApp {
                             .pick_file()
                         {
                             let path_str = path.to_string_lossy().to_string();
-                            if let Some((new_deck, new_json)) = models::load_mflash(&path_str) {
+                            if let Some((new_deck, new_json)) =
+                                crate::archive::load_mflash(&path_str)
+                            {
                                 self.path = path_str;
                                 self.deck = Some(new_deck);
                                 self.raw_json = new_json;
@@ -273,11 +295,17 @@ impl eframe::App for MFlashStudioApp {
 
                 // EDIT MENU
                 ui.menu_button("Edit", |ui| {
-                    if ui.add_enabled(!self.undo_stack.is_empty(), egui::Button::new("⮜ Undo")).clicked() {
+                    if ui
+                        .add_enabled(!self.undo_stack.is_empty(), egui::Button::new("⮜ Undo"))
+                        .clicked()
+                    {
                         self.undo(ctx);
                         ui.close_menu();
                     }
-                    if ui.add_enabled(!self.redo_stack.is_empty(), egui::Button::new("⮞ Redo")).clicked() {
+                    if ui
+                        .add_enabled(!self.redo_stack.is_empty(), egui::Button::new("⮞ Redo"))
+                        .clicked()
+                    {
                         self.redo(ctx);
                         ui.close_menu();
                     }
@@ -365,25 +393,26 @@ impl eframe::App for MFlashStudioApp {
         egui::TopBottomPanel::top("workspace_bar").show(ctx, |ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.x = 6.0;
-                
+
                 ui.label(egui::RichText::new("Workspaces:").weak());
 
-                if ui.selectable_label(self.workspace == Workspace::Deck, "Deck").clicked() {
-                    self.workspace = Workspace::Deck;
-                }
+                ui.selectable_value(&mut self.workspace, Workspace::Deck, "Deck Settings");
+                ui.selectable_value(&mut self.workspace, Workspace::List, "List View");
 
-                if ui.selectable_label(self.workspace == Workspace::List, "List View").clicked() {
-                    self.workspace = Workspace::List;
-                }
-
-                if ui.selectable_label(self.workspace == Workspace::Flashcard, "Flashcard Studio").clicked() {
-                    self.workspace = Workspace::Flashcard;
+                // Keep the image loading trigger when switching to Flashcard view
+                if ui
+                    .selectable_value(
+                        &mut self.workspace,
+                        Workspace::Flashcard,
+                        "Flashcard Studio",
+                    )
+                    .clicked()
+                {
                     self.load_image(ctx);
                 }
 
-                if ui.selectable_label(self.workspace == Workspace::RawJson, "Raw JSON").clicked() {
-                    self.workspace = Workspace::RawJson;
-                }
+                ui.selectable_value(&mut self.workspace, Workspace::Media, "Media Assets");
+                ui.selectable_value(&mut self.workspace, Workspace::RawJson, "Raw JSON");
             });
         });
 
@@ -393,6 +422,16 @@ impl eframe::App for MFlashStudioApp {
         }
         if ctx.input(|i| i.modifiers.command && i.key_pressed(egui::Key::S)) {
             self.save_deck();
+        }
+        if ctx.input(|i| i.modifiers.command && i.key_pressed(egui::Key::F)) {
+            if self.workspace == Workspace::RawJson {
+                self.find_visible = !self.find_visible;
+
+                if !self.find_visible {
+                    self.find_matches.clear();
+                    self.current_match_idx = 0;
+                }
+            }
         }
 
         // Logic for navigation
@@ -406,7 +445,8 @@ impl eframe::App for MFlashStudioApp {
         }
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            if self.deck.is_none() {
+            // Allow the Raw JSON workspace to show even if no deck is loaded
+            if self.deck.is_none() && self.workspace != Workspace::RawJson {
                 ui.centered_and_justified(|ui| ui.label("No deck loaded."));
                 return;
             }
@@ -415,6 +455,11 @@ impl eframe::App for MFlashStudioApp {
                 Workspace::Deck => workspaces::deck::render(self, ui),
                 Workspace::List => workspaces::list::render(self, ui, ctx),
                 Workspace::Flashcard => workspaces::flashcards::render(self, ui),
+                Workspace::Media => {
+                    // Step 18 Media Placeholder
+                    ui.heading("Media Assets");
+                    ui.label("Media library and asset management will go here.");
+                }
                 Workspace::RawJson => workspaces::raw_json::render(self, ui),
             }
         });

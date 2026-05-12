@@ -3,6 +3,9 @@ use eframe::egui;
 
 pub mod audio_settings;
 pub mod flashcard_settings;
+pub mod raw_json_settings;
+pub mod sfx_settings;
+pub mod tts_settings;
 
 pub fn render(app: &mut MFlashStudioApp, ctx: &egui::Context) {
     if !app.show_settings {
@@ -39,6 +42,8 @@ pub fn render(app: &mut MFlashStudioApp, ctx: &egui::Context) {
                                 "Global",
                                 "List",
                                 "Flashcards",
+                                "SFX",
+                                "TTS",
                                 "Audio",
                                 "Plugins",
                                 "Raw JSON",
@@ -71,8 +76,20 @@ pub fn render(app: &mut MFlashStudioApp, ctx: &egui::Context) {
                                                 flashcard_settings::render(app, ui);
                                             }
 
+                                            "SFX" => {
+                                                sfx_settings::render(app, ui);
+                                            }
+
+                                            "TTS" => {
+                                                tts_settings::render(app, ui);
+                                            }
+
                                             "Audio" => {
                                                 audio_settings::render(app, ui);
+                                            }
+
+                                            "Raw JSON" => {
+                                                raw_json_settings::render(app, ui);
                                             }
 
                                             "Global" => {
@@ -91,12 +108,6 @@ pub fn render(app: &mut MFlashStudioApp, ctx: &egui::Context) {
                                                 ui.heading("Plugin Settings");
                                                 ui.add_space(8.0);
                                                 ui.label("Plugin settings will go here.");
-                                            }
-
-                                            "Raw JSON" => {
-                                                ui.heading("Raw JSON");
-                                                ui.add_space(8.0);
-                                                ui.label("Raw JSON settings/config inspection will go here.");
                                             }
 
                                             _ => {
