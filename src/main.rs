@@ -458,7 +458,7 @@ impl eframe::App for MFlashStudioApp {
 
                 if self.config.workspaces.show_media
                     && ui
-                        .selectable_label(self.workspace == Workspace::Media, "Media Assets")
+                        .selectable_label(self.workspace == Workspace::Media, "Assets")
                         .clicked()
                 {
                     self.switch_workspace(Workspace::Media, ctx);
@@ -503,10 +503,7 @@ impl eframe::App for MFlashStudioApp {
                     }
                 }
 
-                Workspace::Media => {
-                    ui.heading("Media Assets");
-                    ui.label("Media library and asset management will go here.");
-                }
+                Workspace::Media => workspaces::assets::render(self, ui, ctx),
 
                 Workspace::SchemaEditor => workspaces::schema_editor::render(self, ui),
             }

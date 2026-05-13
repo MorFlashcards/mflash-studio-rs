@@ -1,3 +1,4 @@
+pub mod assets;
 pub mod browse;
 pub mod deck;
 pub mod schema_editor;
