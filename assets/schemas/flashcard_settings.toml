@@ -1,0 +1,17 @@
+id = "flashcards"
+title = "Flashcard Editor Preferences"
+
+[[sections]]
+title = "General Settings"
+
+  [[sections.settings]]
+  id = "editor_mode"
+  widget_type = "checkbox"
+  label = "Editor Mode"
+  default = true
+
+  [[sections.settings]]
+  id = "show_images"
+  widget_type = "checkbox"
+  label = "Show Images"
+  default = true

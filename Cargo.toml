@@ -18,3 +18,5 @@ rfd = "0.17.2"
 arboard = "3.6.1"
 rodio = "0.22.2"
 regex = "1"
+serde_yml = "0.0.12"
+quick-xml = { version = "0.40.0", features = ["serialize"] }

@@ -19,9 +19,14 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
 
     ui.separator();
 
-    // Prefer the model field, then raw JSON, then a likely image already inside the .mflash package.
-    let model_cover_path = app.deck.as_ref().and_then(|deck| deck.cover.as_ref().map(|c| c.src.clone()));
-    let raw_json_cover_path = root_media_src_from_raw_json(&app.raw_json, "cover");
+    // Prefer the model field, then schema text, then a likely image already inside the .mflash package.
+    let model_cover_path = app
+        .deck
+        .as_ref()
+        .and_then(|deck| deck.cover.as_ref().map(|c| c.src.clone()));
+
+    let raw_json_cover_path = root_media_src_from_raw_json(&app.raw_schema_text, "cover");
+
     let discovered_cover_path = if model_cover_path.is_none() && raw_json_cover_path.is_none() {
         discover_cover_media_in_package(&app.path)
     } else {
@@ -294,7 +299,7 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
 fn sync_raw_json_from_deck(app: &mut MFlashStudioApp) {
     if let Some(deck) = &app.deck {
         if let Ok(updated_json) = serde_json::to_string_pretty(deck) {
-            app.raw_json = updated_json;
+            app.raw_schema_text = updated_json;
         }
     }
 }
@@ -338,11 +343,7 @@ fn load_texture_from_bytes(
     let pixels = image_buffer.as_flat_samples();
     let color_image = egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
 
-    Some(ctx.load_texture(
-        texture_name,
-        color_image,
-        egui::TextureOptions::default(),
-    ))
+    Some(ctx.load_texture(texture_name, color_image, egui::TextureOptions::default()))
 }
 
 fn discover_cover_media_in_package(deck_path: &str) -> Option<String> {

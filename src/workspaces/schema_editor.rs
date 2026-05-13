@@ -1,4 +1,4 @@
-use crate::MFlashStudioApp;
+use crate::{MFlashStudioApp, SchemaFormat};
 use eframe::egui;
 
 fn update_find_matches(app: &mut MFlashStudioApp) {
@@ -14,15 +14,15 @@ fn update_find_matches(app: &mut MFlashStudioApp) {
         builder.case_insensitive(!app.find_case_sensitive);
 
         if let Ok(re) = builder.build() {
-            for mat in re.find_iter(&app.raw_json) {
+            for mat in re.find_iter(&app.raw_schema_text) {
                 app.find_matches.push(mat.start()..mat.end());
             }
         }
     } else {
         let haystack = if app.find_case_sensitive {
-            app.raw_json.clone()
+            app.raw_schema_text.clone()
         } else {
-            app.raw_json.to_ascii_lowercase()
+            app.raw_schema_text.to_ascii_lowercase()
         };
 
         let needle = if app.find_case_sensitive {
@@ -99,16 +99,11 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
     let mut action_save = false;
 
     ui.horizontal(|ui| {
-        ui.heading("Raw deck.json");
+        ui.heading("Schema Editor");
+
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if ui.button("⮜ Cancel & Back").clicked() {
-                if let Some(deck) = &app.deck {
-                    if let Ok(json) = serde_json::to_string_pretty(deck) {
-                        app.raw_json = json;
-                    }
-                } else {
-                    app.raw_json.clear();
-                }
+                app.refresh_schema_text();
                 app.json_error = None;
                 go_back = true;
             }
@@ -195,13 +190,16 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                     if app.find_use_regex {
                         if let Some(re) = build_find_regex(app) {
                             let replacement = re
-                                .replace(&app.raw_json[range.clone()], app.replace_query.as_str())
+                                .replace(
+                                    &app.raw_schema_text[range.clone()],
+                                    app.replace_query.as_str(),
+                                )
                                 .to_string();
 
-                            app.raw_json.replace_range(range, &replacement);
+                            app.raw_schema_text.replace_range(range, &replacement);
                         }
                     } else {
-                        app.raw_json.replace_range(range, &app.replace_query);
+                        app.raw_schema_text.replace_range(range, &app.replace_query);
                     }
 
                     update_find_matches(app);
@@ -210,15 +208,17 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                 if ui.button("Replace All").clicked() && !app.find_query.is_empty() {
                     if app.find_use_regex {
                         if let Some(re) = build_find_regex(app) {
-                            app.raw_json = re
-                                .replace_all(&app.raw_json, app.replace_query.as_str())
+                            app.raw_schema_text = re
+                                .replace_all(&app.raw_schema_text, app.replace_query.as_str())
                                 .to_string();
                         }
                     } else if app.find_case_sensitive {
-                        app.raw_json = app.raw_json.replace(&app.find_query, &app.replace_query);
+                        app.raw_schema_text = app
+                            .raw_schema_text
+                            .replace(&app.find_query, &app.replace_query);
                     } else {
-                        app.raw_json = replace_all_case_insensitive_ascii(
-                            &app.raw_json,
+                        app.raw_schema_text = replace_all_case_insensitive_ascii(
+                            &app.raw_schema_text,
                             &app.find_query,
                             &app.replace_query,
                         );
@@ -233,13 +233,79 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
     }
 
     if let Some(err) = &app.json_error {
-        ui.label(egui::RichText::new(format!("⚠️ JSON Error: {}", err)).color(egui::Color32::RED));
+        ui.label(
+            egui::RichText::new(format!("⚠️ Schema Error: {}", err)).color(egui::Color32::RED),
+        );
         ui.add_space(10.0);
     }
 
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new("👁 Format:").strong());
+
+        let mut format_clicked = false;
+
+        format_clicked |= ui
+            .selectable_value(&mut app.active_schema_format, SchemaFormat::Json, "JSON")
+            .clicked();
+
+        format_clicked |= ui
+            .selectable_value(&mut app.active_schema_format, SchemaFormat::Toml, "TOML")
+            .clicked();
+
+        format_clicked |= ui
+            .selectable_value(&mut app.active_schema_format, SchemaFormat::Yaml, "YAML")
+            .clicked();
+
+        format_clicked |= ui
+            .selectable_value(&mut app.active_schema_format, SchemaFormat::Xml, "XML")
+            .clicked();
+
+        if format_clicked {
+            app.refresh_schema_text();
+
+            if app.find_visible {
+                update_find_matches(app);
+            }
+        }
+
+        ui.add_space(20.0);
+
+        if ui.button("⟳ Format Code").clicked() {
+            match app.active_schema_format {
+                SchemaFormat::Json => {
+                    match serde_json::from_str::<serde_json::Value>(&app.raw_schema_text) {
+                        Ok(value) => {
+                            if let Ok(formatted) = serde_json::to_string_pretty(&value) {
+                                app.raw_schema_text = formatted;
+                                app.json_error = None;
+
+                                if app.find_visible {
+                                    update_find_matches(app);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            app.json_error = Some(e.to_string());
+                        }
+                    }
+                }
+                SchemaFormat::Toml | SchemaFormat::Yaml | SchemaFormat::Xml => {
+                    app.refresh_schema_text();
+
+                    if app.find_visible {
+                        update_find_matches(app);
+                    }
+                }
+            }
+        }
+    });
+
+    ui.separator();
+
     egui::ScrollArea::both().show(ui, |ui| {
         ui.horizontal(|ui| {
-            let line_count = app.raw_json.split('\n').count().max(1);
+            let line_count = app.raw_schema_text.split('\n').count().max(1);
+
             ui.vertical(|ui| {
                 ui.spacing_mut().item_spacing.y = 0.0;
                 ui.add_space(2.0);
@@ -251,7 +317,7 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
 
             ui.separator();
 
-            let output = egui::TextEdit::multiline(&mut app.raw_json)
+            let output = egui::TextEdit::multiline(&mut app.raw_schema_text)
                 .font(egui::TextStyle::Monospace)
                 .code_editor()
                 .desired_width(f32::INFINITY)
@@ -271,7 +337,7 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                 let end = p.max(s);
 
                 if start != end {
-                    let chars: Vec<char> = app.raw_json.chars().collect();
+                    let chars: Vec<char> = app.raw_schema_text.chars().collect();
                     let safe_start = start.min(chars.len());
                     let safe_end = end.min(chars.len());
 
@@ -295,6 +361,7 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                                 ccursor_start,
                                 ccursor_end,
                             )));
+
                         state.store(ui.ctx(), response.id);
                     }
                 }
@@ -308,13 +375,17 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                     .clicked()
                 {
                     ui.output_mut(|o| o.copied_text = app.last_selected_text.clone());
+
                     if let Some(range) = &app.last_cursor_range {
-                        let chars: Vec<char> = app.raw_json.chars().collect();
+                        let chars: Vec<char> = app.raw_schema_text.chars().collect();
                         let mut new_text = String::new();
+
                         new_text.extend(&chars[..range.start]);
                         new_text.extend(&chars[range.end..]);
-                        app.raw_json = new_text;
+
+                        app.raw_schema_text = new_text;
                     }
+
                     app.last_selected_text.clear();
                     app.last_cursor_range = None;
 
@@ -337,23 +408,27 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                     if let Ok(mut clipboard) = arboard::Clipboard::new() {
                         if let Ok(text) = clipboard.get_text() {
                             if let Some(range) = &app.last_cursor_range {
-                                let chars: Vec<char> = app.raw_json.chars().collect();
+                                let chars: Vec<char> = app.raw_schema_text.chars().collect();
                                 let mut new_text = String::new();
+
                                 new_text.extend(&chars[..range.start]);
                                 new_text.push_str(&text);
                                 new_text.extend(&chars[range.end..]);
-                                app.raw_json = new_text;
+
+                                app.raw_schema_text = new_text;
                             } else if let Some(cursor) = output.cursor_range {
                                 let idx = cursor.primary.ccursor.index;
-                                let chars: Vec<char> = app.raw_json.chars().collect();
+                                let chars: Vec<char> = app.raw_schema_text.chars().collect();
                                 let safe_idx = idx.min(chars.len());
                                 let mut new_text = String::new();
+
                                 new_text.extend(&chars[..safe_idx]);
                                 new_text.push_str(&text);
                                 new_text.extend(&chars[safe_idx..]);
-                                app.raw_json = new_text;
+
+                                app.raw_schema_text = new_text;
                             } else {
-                                app.raw_json.push_str(&text);
+                                app.raw_schema_text.push_str(&text);
                             }
 
                             app.last_selected_text.clear();
@@ -364,14 +439,15 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                             }
                         }
                     }
+
                     ui.close_menu();
                 }
 
                 ui.separator();
 
-                if ui.button("✂ Cut All JSON").clicked() {
-                    ui.output_mut(|o| o.copied_text = app.raw_json.clone());
-                    app.raw_json.clear();
+                if ui.button("✂ Cut All Schema").clicked() {
+                    ui.output_mut(|o| o.copied_text = app.raw_schema_text.clone());
+                    app.raw_schema_text.clear();
 
                     if app.find_visible {
                         update_find_matches(app);
@@ -380,8 +456,8 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                     ui.close_menu();
                 }
 
-                if ui.button("📄 Copy All JSON").clicked() {
-                    ui.output_mut(|o| o.copied_text = app.raw_json.clone());
+                if ui.button("📄 Copy All Schema").clicked() {
+                    ui.output_mut(|o| o.copied_text = app.raw_schema_text.clone());
                     ui.close_menu();
                 }
             });
@@ -389,29 +465,18 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
     });
 
     if apply_changes {
-        match serde_json::from_str::<crate::models::MFlashDeck>(&app.raw_json) {
-            Ok(new_deck) => {
-                app.push_snapshot();
-                app.deck = Some(new_deck);
-                app.json_error = None;
+        app.sync_text_to_deck();
 
-                if let Some(d) = &app.deck {
-                    app.selected_index = app.selected_index.min(d.cards.len().saturating_sub(1));
-                }
-
-                if action_save {
-                    app.save_deck();
-                }
-
-                go_back = true;
+        if app.json_error.is_none() {
+            if action_save {
+                app.save_deck();
             }
-            Err(e) => {
-                app.json_error = Some(e.to_string());
-            }
+
+            go_back = true;
         }
     }
 
     if go_back {
-        app.workspace = crate::Workspace::List;
+        app.workspace = crate::Workspace::Browse;
     }
 }

@@ -163,77 +163,88 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                                                 current_lang.clone()
                                             };
 
-                                            let r = egui::ComboBox::from_id_source("term_lang_combo")
-                                                .selected_text(display_text)
-                                                .width(150.0)
-                                                .show_ui(ui, |ui| {
-                                                    // 1. The Search Box inside the dropdown
-                                                    ui.add(
-                                                        egui::TextEdit::singleline(
-                                                            &mut app.lang_search_query,
+                                            let r =
+                                                egui::ComboBox::from_id_source("term_lang_combo")
+                                                    .selected_text(display_text)
+                                                    .width(150.0)
+                                                    .show_ui(ui, |ui| {
+                                                        // 1. The Search Box inside the dropdown
+                                                        ui.add(
+                                                            egui::TextEdit::singleline(
+                                                                &mut app.lang_search_query,
+                                                            )
+                                                            .hint_text("Search..."),
                                                         )
-                                                        .hint_text("Search..."),
-                                                    )
-                                                    .request_focus();
+                                                        .request_focus();
 
-                                                    ui.separator();
+                                                        ui.separator();
 
-                                                    let search_lower = app.lang_search_query.to_lowercase();
-                                                    let mut changed = false;
+                                                        let search_lower =
+                                                            app.lang_search_query.to_lowercase();
+                                                        let mut changed = false;
 
-                                                    // 2. Filter and display options
-                                                    for lang in crate::audio::bcp47::SUPPORTED_LANGUAGES {
-                                                        if lang
-                                                            .display_name
-                                                            .to_lowercase()
-                                                            .contains(&search_lower)
-                                                            || lang
-                                                                .bcp_47
+                                                        // 2. Filter and display options
+                                                        for lang in
+                                                            crate::audio::bcp47::SUPPORTED_LANGUAGES
+                                                        {
+                                                            if lang
+                                                                .display_name
                                                                 .to_lowercase()
                                                                 .contains(&search_lower)
-                                                        {
-                                                            if ui
-                                                                .selectable_value(
-                                                                    &mut current_lang,
-                                                                    lang.bcp_47.to_string(),
-                                                                    format!(
-                                                                        "{} ({})",
-                                                                        lang.display_name, lang.bcp_47
-                                                                    ),
-                                                                )
-                                                                .clicked()
+                                                                || lang
+                                                                    .bcp_47
+                                                                    .to_lowercase()
+                                                                    .contains(&search_lower)
                                                             {
-                                                                changed = true;
+                                                                if ui
+                                                                    .selectable_value(
+                                                                        &mut current_lang,
+                                                                        lang.bcp_47.to_string(),
+                                                                        format!(
+                                                                            "{} ({})",
+                                                                            lang.display_name,
+                                                                            lang.bcp_47
+                                                                        ),
+                                                                    )
+                                                                    .clicked()
+                                                                {
+                                                                    changed = true;
+                                                                }
                                                             }
                                                         }
-                                                    }
 
-                                                    // Allow them to use whatever custom code they typed if they really want to
-                                                    if !search_lower.is_empty()
-                                                        && ui
-                                                            .button(format!(
-                                                                "Use custom: '{}'",
-                                                                app.lang_search_query
-                                                            ))
-                                                            .clicked()
-                                                    {
-                                                        current_lang = app.lang_search_query.clone();
-                                                        changed = true;
-                                                    }
+                                                        // Allow them to use whatever custom code they typed if they really want to
+                                                        if !search_lower.is_empty()
+                                                            && ui
+                                                                .button(format!(
+                                                                    "Use custom: '{}'",
+                                                                    app.lang_search_query
+                                                                ))
+                                                                .clicked()
+                                                        {
+                                                            current_lang =
+                                                                app.lang_search_query.clone();
+                                                            changed = true;
+                                                        }
 
-                                                    changed
-                                                });
+                                                        changed
+                                                    });
 
-                                            ui.label(egui::RichText::new("🗣 Language:").weak().size(12.0));
+                                            ui.label(
+                                                egui::RichText::new("🗣 Language:")
+                                                    .weak()
+                                                    .size(12.0),
+                                            );
 
                                             // 3. Handle state updates if they picked something
                                             if let Some(inner_response) = r.inner {
                                                 if inner_response {
-                                                    card.term_lang = if current_lang.trim().is_empty() {
-                                                        None
-                                                    } else {
-                                                        Some(current_lang.trim().to_string())
-                                                    };
+                                                    card.term_lang =
+                                                        if current_lang.trim().is_empty() {
+                                                            None
+                                                        } else {
+                                                            Some(current_lang.trim().to_string())
+                                                        };
                                                     app.lang_search_query.clear(); // Clear search for next time
                                                     json_needs_sync = true;
                                                 }
@@ -256,18 +267,23 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
 
                             // --- OPTIONAL: PHONETIC & POS ---
                             if app.show_phonetic || app.show_part_of_speech {
-                                let lexical = card.lexical.get_or_insert_with(|| crate::models::LexicalInfo {
-                                    phonetic: None,
-                                    part_of_speech: None,
-                                    forms: vec![],
-                                    synonyms: vec![],
-                                    antonyms: vec![],
+                                let lexical = card.lexical.get_or_insert_with(|| {
+                                    crate::models::LexicalInfo {
+                                        phonetic: None,
+                                        part_of_speech: None,
+                                        forms: vec![],
+                                        synonyms: vec![],
+                                        antonyms: vec![],
+                                    }
                                 });
 
                                 if app.show_phonetic {
                                     ui.horizontal(|ui| {
-                                        ui.label(egui::RichText::new("Phonetic:").weak().size(12.0));
-                                        let mut phonetic_str = lexical.phonetic.clone().unwrap_or_default();
+                                        ui.label(
+                                            egui::RichText::new("Phonetic:").weak().size(12.0),
+                                        );
+                                        let mut phonetic_str =
+                                            lexical.phonetic.clone().unwrap_or_default();
                                         if ui
                                             .add(
                                                 egui::TextEdit::singleline(&mut phonetic_str)
@@ -287,10 +303,18 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
 
                                 if app.show_part_of_speech {
                                     ui.horizontal(|ui| {
-                                        ui.label(egui::RichText::new("Part of Speech:").weak().size(12.0));
-                                        let mut pos_str = lexical.part_of_speech.clone().unwrap_or_default();
+                                        ui.label(
+                                            egui::RichText::new("Part of Speech:")
+                                                .weak()
+                                                .size(12.0),
+                                        );
+                                        let mut pos_str =
+                                            lexical.part_of_speech.clone().unwrap_or_default();
                                         if ui
-                                            .add(egui::TextEdit::singleline(&mut pos_str).desired_width(150.0))
+                                            .add(
+                                                egui::TextEdit::singleline(&mut pos_str)
+                                                    .desired_width(150.0),
+                                            )
                                             .changed()
                                         {
                                             lexical.part_of_speech = if pos_str.trim().is_empty() {
@@ -330,77 +354,88 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                                                 current_lang.clone()
                                             };
 
-                                            let r = egui::ComboBox::from_id_source("def_lang_combo")
-                                                .selected_text(display_text)
-                                                .width(150.0)
-                                                .show_ui(ui, |ui| {
-                                                    // 1. The Search Box inside the dropdown
-                                                    ui.add(
-                                                        egui::TextEdit::singleline(
-                                                            &mut app.lang_search_query,
+                                            let r =
+                                                egui::ComboBox::from_id_source("def_lang_combo")
+                                                    .selected_text(display_text)
+                                                    .width(150.0)
+                                                    .show_ui(ui, |ui| {
+                                                        // 1. The Search Box inside the dropdown
+                                                        ui.add(
+                                                            egui::TextEdit::singleline(
+                                                                &mut app.lang_search_query,
+                                                            )
+                                                            .hint_text("Search..."),
                                                         )
-                                                        .hint_text("Search..."),
-                                                    )
-                                                    .request_focus();
+                                                        .request_focus();
 
-                                                    ui.separator();
+                                                        ui.separator();
 
-                                                    let search_lower = app.lang_search_query.to_lowercase();
-                                                    let mut changed = false;
+                                                        let search_lower =
+                                                            app.lang_search_query.to_lowercase();
+                                                        let mut changed = false;
 
-                                                    // 2. Filter and display options
-                                                    for lang in crate::audio::bcp47::SUPPORTED_LANGUAGES {
-                                                        if lang
-                                                            .display_name
-                                                            .to_lowercase()
-                                                            .contains(&search_lower)
-                                                            || lang
-                                                                .bcp_47
-                                                                .to_lowercase()
-                                                            .contains(&search_lower)
+                                                        // 2. Filter and display options
+                                                        for lang in
+                                                            crate::audio::bcp47::SUPPORTED_LANGUAGES
                                                         {
-                                                            if ui
-                                                                .selectable_value(
-                                                                    &mut current_lang,
-                                                                    lang.bcp_47.to_string(),
-                                                                    format!(
-                                                                        "{} ({})",
-                                                                        lang.display_name, lang.bcp_47
-                                                                    ),
-                                                                )
-                                                                .clicked()
+                                                            if lang
+                                                                .display_name
+                                                                .to_lowercase()
+                                                                .contains(&search_lower)
+                                                                || lang
+                                                                    .bcp_47
+                                                                    .to_lowercase()
+                                                                    .contains(&search_lower)
                                                             {
-                                                                changed = true;
+                                                                if ui
+                                                                    .selectable_value(
+                                                                        &mut current_lang,
+                                                                        lang.bcp_47.to_string(),
+                                                                        format!(
+                                                                            "{} ({})",
+                                                                            lang.display_name,
+                                                                            lang.bcp_47
+                                                                        ),
+                                                                    )
+                                                                    .clicked()
+                                                                {
+                                                                    changed = true;
+                                                                }
                                                             }
                                                         }
-                                                    }
 
-                                                    // Allow them to use whatever custom code they typed if they really want to
-                                                    if !search_lower.is_empty()
-                                                        && ui
-                                                            .button(format!(
-                                                                "Use custom: '{}'",
-                                                                app.lang_search_query
-                                                            ))
-                                                            .clicked()
-                                                    {
-                                                        current_lang = app.lang_search_query.clone();
-                                                        changed = true;
-                                                    }
+                                                        // Allow them to use whatever custom code they typed if they really want to
+                                                        if !search_lower.is_empty()
+                                                            && ui
+                                                                .button(format!(
+                                                                    "Use custom: '{}'",
+                                                                    app.lang_search_query
+                                                                ))
+                                                                .clicked()
+                                                        {
+                                                            current_lang =
+                                                                app.lang_search_query.clone();
+                                                            changed = true;
+                                                        }
 
-                                                    changed
-                                                });
+                                                        changed
+                                                    });
 
-                                            ui.label(egui::RichText::new("🗣 Language:").weak().size(12.0));
+                                            ui.label(
+                                                egui::RichText::new("🗣 Language:")
+                                                    .weak()
+                                                    .size(12.0),
+                                            );
 
                                             // 3. Handle state updates if they picked something
                                             if let Some(inner_response) = r.inner {
                                                 if inner_response {
-                                                    card.def_lang = if current_lang.trim().is_empty() {
-                                                        None
-                                                    } else {
-                                                        Some(current_lang.trim().to_string())
-                                                    };
+                                                    card.def_lang =
+                                                        if current_lang.trim().is_empty() {
+                                                            None
+                                                        } else {
+                                                            Some(current_lang.trim().to_string())
+                                                        };
                                                     app.lang_search_query.clear(); // Clear search for next time
                                                     json_needs_sync = true;
                                                 }
@@ -526,7 +561,8 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
 
                             ui.separator();
                             ui.label(
-                                egui::RichText::new(card.definition.as_deref().unwrap_or("")).size(app.config.ui.font_size_body),
+                                egui::RichText::new(card.definition.as_deref().unwrap_or(""))
+                                    .size(app.config.ui.font_size_body),
                             );
 
                             if !card.examples.is_empty() {
@@ -537,7 +573,10 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                                         crate::models::Example::Text(s) => s,
                                         crate::models::Example::Detailed(info) => &info.text,
                                     };
-                                    ui.label(egui::RichText::new(format!("• \"{}\"", text_ref)).italics());
+                                    ui.label(
+                                        egui::RichText::new(format!("• \"{}\"", text_ref))
+                                            .italics(),
+                                    );
                                 }
                             }
 
@@ -564,7 +603,9 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
 
                         if app.show_images {
                             if let Some(tex) = &app.current_texture {
-                                ui.add(egui::Image::from_texture(tex).max_width(ui.available_width()));
+                                ui.add(
+                                    egui::Image::from_texture(tex).max_width(ui.available_width()),
+                                );
                             } else if app.editor_mode {
                                 ui.add_space(40.0);
                                 egui::Frame::none()
@@ -591,14 +632,28 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                 ui.add_space(20.0);
                 if app.editor_mode {
                     ui.heading("Image Occlusion");
-                    ui.label(egui::RichText::new("Image occlusion visual editor coming soon.").weak().italics());
+                    ui.label(
+                        egui::RichText::new("Image occlusion visual editor coming soon.")
+                            .weak()
+                            .italics(),
+                    );
                     ui.add_space(10.0);
 
                     // Prompt Field
                     ui.label(egui::RichText::new("Prompt").strong());
                     let mut prompt_ref = card.prompt.clone().unwrap_or_default();
-                    if ui.add(egui::TextEdit::singleline(&mut prompt_ref).desired_width(f32::INFINITY)).changed() {
-                        card.prompt = if prompt_ref.trim().is_empty() { None } else { Some(prompt_ref.trim().to_string()) };
+                    if ui
+                        .add(
+                            egui::TextEdit::singleline(&mut prompt_ref)
+                                .desired_width(f32::INFINITY),
+                        )
+                        .changed()
+                    {
+                        card.prompt = if prompt_ref.trim().is_empty() {
+                            None
+                        } else {
+                            Some(prompt_ref.trim().to_string())
+                        };
                         json_needs_sync = true;
                     }
 
@@ -626,21 +681,45 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                 ui.add_space(20.0);
                 if app.editor_mode {
                     ui.heading("Listening Card");
-                    ui.label(egui::RichText::new("Listening card editor coming soon.").weak().italics());
+                    ui.label(
+                        egui::RichText::new("Listening card editor coming soon.")
+                            .weak()
+                            .italics(),
+                    );
                     ui.add_space(10.0);
 
                     ui.label(egui::RichText::new("Prompt").strong());
                     let mut prompt_ref = card.prompt.clone().unwrap_or_default();
-                    if ui.add(egui::TextEdit::singleline(&mut prompt_ref).desired_width(f32::INFINITY)).changed() {
-                        card.prompt = if prompt_ref.trim().is_empty() { None } else { Some(prompt_ref.trim().to_string()) };
+                    if ui
+                        .add(
+                            egui::TextEdit::singleline(&mut prompt_ref)
+                                .desired_width(f32::INFINITY),
+                        )
+                        .changed()
+                    {
+                        card.prompt = if prompt_ref.trim().is_empty() {
+                            None
+                        } else {
+                            Some(prompt_ref.trim().to_string())
+                        };
                         json_needs_sync = true;
                     }
 
                     ui.add_space(10.0);
                     ui.label(egui::RichText::new("Answer").strong());
                     let mut answer_ref = card.answer.clone().unwrap_or_default();
-                    if ui.add(egui::TextEdit::singleline(&mut answer_ref).desired_width(f32::INFINITY)).changed() {
-                        card.answer = if answer_ref.trim().is_empty() { None } else { Some(answer_ref.trim().to_string()) };
+                    if ui
+                        .add(
+                            egui::TextEdit::singleline(&mut answer_ref)
+                                .desired_width(f32::INFINITY),
+                        )
+                        .changed()
+                    {
+                        card.answer = if answer_ref.trim().is_empty() {
+                            None
+                        } else {
+                            Some(answer_ref.trim().to_string())
+                        };
                         json_needs_sync = true;
                     }
                 } else {
@@ -654,21 +733,45 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                 ui.add_space(20.0);
                 if app.editor_mode {
                     ui.heading("Media Prompt Card");
-                    ui.label(egui::RichText::new("Media prompt editor coming soon.").weak().italics());
+                    ui.label(
+                        egui::RichText::new("Media prompt editor coming soon.")
+                            .weak()
+                            .italics(),
+                    );
                     ui.add_space(10.0);
-                    
+
                     ui.label(egui::RichText::new("Prompt").strong());
                     let mut prompt_ref = card.prompt.clone().unwrap_or_default();
-                    if ui.add(egui::TextEdit::singleline(&mut prompt_ref).desired_width(f32::INFINITY)).changed() {
-                        card.prompt = if prompt_ref.trim().is_empty() { None } else { Some(prompt_ref.trim().to_string()) };
+                    if ui
+                        .add(
+                            egui::TextEdit::singleline(&mut prompt_ref)
+                                .desired_width(f32::INFINITY),
+                        )
+                        .changed()
+                    {
+                        card.prompt = if prompt_ref.trim().is_empty() {
+                            None
+                        } else {
+                            Some(prompt_ref.trim().to_string())
+                        };
                         json_needs_sync = true;
                     }
 
                     ui.add_space(10.0);
                     ui.label(egui::RichText::new("Answer").strong());
                     let mut answer_ref = card.answer.clone().unwrap_or_default();
-                    if ui.add(egui::TextEdit::singleline(&mut answer_ref).desired_width(f32::INFINITY)).changed() {
-                        card.answer = if answer_ref.trim().is_empty() { None } else { Some(answer_ref.trim().to_string()) };
+                    if ui
+                        .add(
+                            egui::TextEdit::singleline(&mut answer_ref)
+                                .desired_width(f32::INFINITY),
+                        )
+                        .changed()
+                    {
+                        card.answer = if answer_ref.trim().is_empty() {
+                            None
+                        } else {
+                            Some(answer_ref.trim().to_string())
+                        };
                         json_needs_sync = true;
                     }
                 } else {
@@ -682,7 +785,11 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                 ui.add_space(20.0);
                 if app.editor_mode {
                     ui.heading("Cloze Card");
-                    ui.label(egui::RichText::new("Fill-in-the-blank editor coming soon.").weak().italics());
+                    ui.label(
+                        egui::RichText::new("Fill-in-the-blank editor coming soon.")
+                            .weak()
+                            .italics(),
+                    );
                 } else {
                     ui.heading("Cloze Card (Reader Mode)");
                 }
@@ -730,7 +837,8 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
             app.selected_index = deck.cards.len() - 1;
         }
 
-        if let Ok(mut parsed_json) = serde_json::from_str::<serde_json::Value>(&app.raw_json) {
+        if let Ok(mut parsed_json) = serde_json::from_str::<serde_json::Value>(&app.raw_schema_text)
+        {
             if let Some(cards) = parsed_json.get_mut("cards").and_then(|c| c.as_array_mut()) {
                 let new_card_obj = serde_json::json!({
                     "id": new_card_id,
@@ -751,7 +859,7 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                 cards.push(new_card_obj);
             }
             if let Ok(updated_json) = serde_json::to_string_pretty(&parsed_json) {
-                app.raw_json = updated_json;
+                app.raw_schema_text = updated_json;
             }
         }
         app.load_image(ui.ctx());
@@ -774,7 +882,8 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
     }
 
     if json_needs_sync {
-        if let Ok(mut parsed_json) = serde_json::from_str::<serde_json::Value>(&app.raw_json) {
+        if let Ok(mut parsed_json) = serde_json::from_str::<serde_json::Value>(&app.raw_schema_text)
+        {
             if let Some(cards) = parsed_json.get_mut("cards").and_then(|c| c.as_array_mut()) {
                 if let Some(card_val) = cards.get_mut(app.selected_index) {
                     if let Some(card_obj) = card_val.as_object_mut() {
@@ -782,17 +891,16 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                             let card = &deck.cards[app.selected_index];
 
                             // Core
-                            card_obj.insert(
-                                "kind".to_string(),
-                                serde_json::json!(card.kind),
-                            );
+                            card_obj.insert("kind".to_string(), serde_json::json!(card.kind));
                             card_obj.insert(
                                 "term".to_string(),
                                 serde_json::Value::String(card.term.clone().unwrap_or_default()),
                             );
                             card_obj.insert(
                                 "definition".to_string(),
-                                serde_json::Value::String(card.definition.clone().unwrap_or_default()),
+                                serde_json::Value::String(
+                                    card.definition.clone().unwrap_or_default(),
+                                ),
                             );
 
                             // Optional Strings mapped to Null if empty
@@ -814,19 +922,14 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                             insert_opt_str("notes", &card.notes);
 
                             if let Some(lexical) = &card.lexical {
-                                card_obj.insert(
-                                    "lexical".to_string(),
-                                    serde_json::json!(lexical),
-                                );
+                                card_obj.insert("lexical".to_string(), serde_json::json!(lexical));
                             } else {
                                 card_obj.insert("lexical".to_string(), serde_json::Value::Null);
                             }
 
                             if let Some(occlusion) = &card.occlusion {
-                                card_obj.insert(
-                                    "occlusion".to_string(),
-                                    serde_json::json!(occlusion),
-                                );
+                                card_obj
+                                    .insert("occlusion".to_string(), serde_json::json!(occlusion));
                             } else {
                                 card_obj.insert("occlusion".to_string(), serde_json::Value::Null);
                             }
@@ -863,7 +966,7 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                 }
             }
             if let Ok(updated_json) = serde_json::to_string_pretty(&parsed_json) {
-                app.raw_json = updated_json;
+                app.raw_schema_text = updated_json;
             }
         }
     }
@@ -906,7 +1009,7 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                 }
 
                 if let Ok(mut parsed_json) =
-                    serde_json::from_str::<serde_json::Value>(&app.raw_json)
+                    serde_json::from_str::<serde_json::Value>(&app.raw_schema_text)
                 {
                     if let Some(cards) = parsed_json.get_mut("cards").and_then(|c| c.as_array_mut())
                     {
@@ -950,7 +1053,7 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                         }
                     }
                     if let Ok(updated_json) = serde_json::to_string_pretty(&parsed_json) {
-                        app.raw_json = updated_json;
+                        app.raw_schema_text = updated_json;
                     }
                 }
                 app.load_image(ui.ctx());
@@ -959,7 +1062,7 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
     }
 
     if go_back {
-        app.workspace = crate::Workspace::List;
+        app.workspace = crate::Workspace::Browse;
     }
 
     if action_save {
@@ -986,8 +1089,13 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
 
             // 2. Fallback to native TTS if no file played
             if app.enable_tts && !played_media {
-                app.audio.speak(card.term.as_deref().unwrap_or(""), Some(term_lang), true);
-                app.audio.speak(card.definition.as_deref().unwrap_or(""), Some(def_lang), false);
+                app.audio
+                    .speak(card.term.as_deref().unwrap_or(""), Some(term_lang), true);
+                app.audio.speak(
+                    card.definition.as_deref().unwrap_or(""),
+                    Some(def_lang),
+                    false,
+                );
             }
         }
     }

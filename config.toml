@@ -10,13 +10,14 @@ font_size_body = 22.0
 window_width = 900.0
 window_height = 600.0
 
-# Theme options: "dark" or "light" (Standardizing on your screenshots)
+# Theme options: "dark" or "light"
 theme = "dark"
 
 [audio]
 # Toggle the Text-to-Speech engine globally
 enabled = true
-# Speed of the voice (1.0 is normal, 1.5 is fast-study mode)
+
+# Speed of the voice; 1.0 is normal, 1.5 is fast-study mode
 rate = 1.0
 
 [plugins]
@@ -24,11 +25,47 @@ rate = 1.0
 # Keep this empty for the cleanest, "Zen" study experience
 enabled = []
 
+[workspaces]
+# Controls which workspaces appear in the workspace bar.
+# Hidden workspaces can still exist internally, but they will not show in the top bar
+# or be included when cycling through workspaces.
+show_deck = true
+show_browse = true
+show_visual_editor = true
+show_media = true
+show_schema_editor = true
+
 [shortcuts]
-# Keyboard mapping for power-user navigation
+# Card navigation
 next_card = "ArrowRight"
 prev_card = "ArrowLeft"
+
+# Browse navigation
 next_list_item = "ArrowDown"
 prev_list_item = "ArrowUp"
 view_card = "Enter"
 back_to_list = "Escape"
+
+# Workspace navigation
+next_workspace = "Ctrl+Tab"
+prev_workspace = "Ctrl+Shift+Tab"
+
+# Direct workspace jumps
+workspace_deck = "Ctrl+1"
+workspace_browse = "Ctrl+2"
+workspace_visual_editor = "Ctrl+3"
+workspace_media = "Ctrl+4"
+workspace_schema_editor = "Ctrl+5"
+
+# App actions
+save_deck = "Ctrl+S"
+open_settings = "Ctrl+Comma"
+
+# Schema Editor actions
+toggle_find = "Ctrl+F"
+
+# Window / view actions
+exit_fullscreen = "F11"
+zoom_in = "Ctrl+Plus"
+zoom_out = "Ctrl+Minus"
+actual_size = "Ctrl+0"

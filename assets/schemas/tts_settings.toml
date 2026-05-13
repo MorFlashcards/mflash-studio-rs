@@ -1,0 +1,60 @@
+id = "tts"
+title = "Text-to-Speech (TTS)"
+description = "Configure text-to-speech engine and global parameters."
+
+[[sections]]
+title = "TTS Engine"
+description = "Engine selection is a placeholder for now."
+
+  [[sections.settings]]
+  id = "enable_tts"
+  widget_type = "checkbox"
+  label = "Enable Text-to-Speech"
+  description = "When enabled, the app can read terms, definitions, and prompts aloud."
+  default = true
+
+  [[sections.settings]]
+  id = "tts_engine"
+  widget_type = "combobox"
+  label = "Engine:"
+  options = ["System Default", "Piper", "eSpeak NG", "External Command"]
+  default = "System Default"
+
+  [[sections.settings]]
+  id = "tts_fallback"
+  widget_type = "combobox"
+  label = "Fallback behavior:"
+  options = ["Use TTS when no media audio exists", "Always prefer TTS", "Never fallback to TTS"]
+  default = "Use TTS when no media audio exists"
+
+[[sections]]
+title = "Global Parameters"
+description = "Rate, pitch, and volume controls are placeholders for now."
+
+  [[sections.settings]]
+  id = "tts_rate"
+  widget_type = "slider"
+  label = "Rate"
+  min = 0.5
+  max = 2.0
+  default = 1.0
+
+  [[sections.settings]]
+  id = "tts_pitch"
+  widget_type = "slider"
+  label = "Pitch"
+  min = 0.5
+  max = 2.0
+  default = 1.0
+
+  [[sections.settings]]
+  id = "tts_volume"
+  widget_type = "slider"
+  label = "Volume"
+  min = 0.0
+  max = 2.0
+  default = 1.0
+
+[[sections]]
+title = "Voice Profiles"
+description = "Future voice profiles can map languages or card fields to specific voices. Voice profile editing is not wired yet."

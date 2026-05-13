@@ -2268,6 +2268,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "libyml"
+version = "0.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3302702afa434ffa30847a83305f0a69d6abd74293b6554c18ec85c7ef30c980"
+dependencies = [
+ "anyhow",
+ "version_check",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2386,11 +2396,13 @@ dependencies = [
  "eframe",
  "egui_extras",
  "image 0.24.9",
+ "quick-xml 0.40.0",
  "regex",
  "rfd",
  "rodio",
  "serde",
  "serde_json",
+ "serde_yml",
  "toml",
  "tts",
  "zip",
@@ -3127,6 +3139,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "quick-xml"
+version = "0.40.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b7315c86b26aaef0321fba33c9dcc160da659c6a9d278f0f6a5656d6561c03b"
+dependencies = [
+ "memchr",
+ "serde",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3406,6 +3428,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
 
 [[package]]
+name = "ryu"
+version = "1.0.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
+
+[[package]]
 name = "same-file"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3506,6 +3534,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf41e0cfaf7226dca15e8197172c295a782857fcb97fad1808a166870dee75a3"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "serde_yml"
+version = "0.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59e2dd588bf1597a252c3b920e0143eb99b0f76e4e082f4c92ce34fbc9e71ddd"
+dependencies = [
+ "indexmap",
+ "itoa",
+ "libyml",
+ "memchr",
+ "ryu",
+ "serde",
+ "version_check",
 ]
 
 [[package]]
@@ -4495,7 +4538,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c324a910fd86ebdc364a3e61ec1f11737d3b1d6c273c0239ee8ff4bc0d24b4a"
 dependencies = [
  "proc-macro2",
- "quick-xml",
+ "quick-xml 0.39.4",
  "quote",
 ]
 

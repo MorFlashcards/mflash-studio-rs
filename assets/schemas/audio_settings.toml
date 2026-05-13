@@ -1,0 +1,16 @@
+id = "audio"
+title = "Audio Settings"
+
+[[sections]]
+title = "Media Audio & Pronunciations"
+
+  [[sections.settings]]
+  id = "enable_media_audio"
+  widget_type = "checkbox"
+  label = "Prioritize Recorded Media Audio"
+  description = "When checked, the app will play files from the deck (e.g., .mp3/.wav) before falling back to TTS."
+  default = true
+
+[[sections]]
+title = "Media Management (Coming Soon)"
+description = "Placeholder for managing term_pronunciation, definition_pronunciation, and explanation_audio assets."

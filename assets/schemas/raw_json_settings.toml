@@ -1,0 +1,29 @@
+id = "raw_json"
+title = "Raw JSON Workspace Settings"
+
+[[sections]]
+title = "Editor Appearance"
+description = "Customizing the look and feel of the JSON editor. Theming and syntax coloring settings coming soon."
+
+  [[sections.settings]]
+  id = "syntax_highlighting"
+  widget_type = "checkbox"
+  label = "Enable Syntax Highlighting (Placeholder)"
+  default = false
+
+  [[sections.settings]]
+  id = "line_numbers"
+  widget_type = "checkbox"
+  label = "Show Line Numbers (Currently always on)"
+  default = true
+
+[[sections]]
+title = "Debugger & Advanced"
+description = "Advanced tools for mflash deck validation and execution."
+
+  [[sections.settings]]
+  id = "enable_breakpoints"
+  widget_type = "checkbox"
+  label = "Enable Breakpoints & Step-through Debugging"
+  description = "Breakpoints will highlight the current line during study execution simulation."
+  default = false

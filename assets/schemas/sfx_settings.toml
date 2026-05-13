@@ -1,0 +1,12 @@
+id = "sfx"
+title = "Sound Effects"
+
+[[sections]]
+title = "Audio Interface"
+
+  [[sections.settings]]
+  id = "mute_ui_sounds"
+  widget_type = "checkbox"
+  label = "Mute Studio UI Sounds"
+  description = "Disable clicks, hovers, saves, and other interface sounds."
+  default = false

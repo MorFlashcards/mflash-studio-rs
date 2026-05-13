@@ -76,8 +76,8 @@ fn save_packaged_mflash(
     let temp_file = std::fs::File::create(&temp_path)?;
     let mut zip_writer = zip::ZipWriter::new(temp_file);
 
-    let options =
-        zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
 
     let mut added_files = HashSet::new();
 
@@ -215,8 +215,12 @@ fn ingest_media_src(
             .extension()
             .unwrap_or_default()
             .to_string_lossy();
-        let ext_str = if ext.is_empty() { String::new() } else { format!(".{}", ext) };
-        
+        let ext_str = if ext.is_empty() {
+            String::new()
+        } else {
+            format!(".{}", ext)
+        };
+
         internal_path = format!("{}/{}_{}{}", target_dir, stem, counter, ext_str);
         counter += 1;
     }
