@@ -53,10 +53,28 @@ pub fn render(app: &mut MFlashStudioApp, ctx: &egui::Context) {
                                     .show(ui, |ui| {
                                         ui.set_width(ui.available_width());
 
-                                        // TODO: Here is where the generic TOML renderer will go!
-                                        // For now, just a placeholder so it compiles:
                                         ui.heading(&app.settings_category);
-                                        ui.label("TOML Schema parser will be wired up here.");
+                                        ui.add_space(8.0);
+
+                                        match app.settings_category.as_str() {
+                                            "Flashcards" => {
+                                                ui.checkbox(
+                                                    &mut app.enable_live_save,
+                                                    "⚡ Enable Live Save (SQLite Sync)",
+                                                );
+
+                                                ui.add_space(6.0);
+
+                                                ui.label(
+                                                    "When enabled, card edits are synced into the active SQLite workspace database.",
+                                                );
+                                            }
+
+                                            _ => {
+                                                // TODO: Here is where the generic TOML renderer will go!
+                                                ui.label("TOML Schema parser will be wired up here.");
+                                            }
+                                        }
                                     });
                             },
                         );

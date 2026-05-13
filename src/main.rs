@@ -52,6 +52,12 @@ pub struct MFlashStudioApp {
     /// The live JSON dump from the SQLite database
     pub active_schema_json: Option<String>,
 
+    /// Enables automatic SQLite-backed live saves while editing.
+    pub enable_live_save: bool,
+
+    /// Path to the active SQLite workspace database, when a deck is opened through mflash-core.
+    pub active_db_path: Option<std::path::PathBuf>,
+
     pub workspace: Workspace,
     pub active_schema_format: SchemaFormat,
     pub selected_index: usize,
@@ -95,6 +101,65 @@ pub struct MFlashStudioApp {
 }
 
 impl MFlashStudioApp {
+    pub fn sync_card_to_core(&self, card_index: usize) {
+        if !self.enable_live_save {
+            return;
+        }
+
+        let Some(deck) = &self.deck else {
+            return;
+        };
+
+        if card_index >= deck.cards.len() {
+            return;
+        }
+
+        let card = &deck.cards[card_index];
+
+        let pb_card = mflash_core::pb::Card {
+            id: card.id.clone(),
+            term: card.term.clone(),
+            definition: card.definition.clone(),
+            prompt: card.prompt.clone(),
+            answer: card.answer.clone(),
+            ..Default::default()
+        };
+
+        let cache_path = if let Some(db_path) = &self.active_db_path {
+            db_path
+                .parent()
+                .map(std::path::Path::to_path_buf)
+                .or_else(|| {
+                    self.active_workspace_id.as_ref().and_then(|workspace_id| {
+                        dirs::home_dir().map(|home| home.join(".mflash_cache").join(workspace_id))
+                    })
+                })
+        } else {
+            self.active_workspace_id.as_ref().and_then(|workspace_id| {
+                dirs::home_dir().map(|home| home.join(".mflash_cache").join(workspace_id))
+            })
+        };
+
+        let Some(cache_path) = cache_path else {
+            return;
+        };
+
+        match mflash_core::db::init_workspace_db(&cache_path) {
+            Ok(conn) => {
+                if let Err(e) = mflash_core::db::update_single_card(&conn, &pb_card) {
+                    eprintln!("❌ Live save failed for card {}: {}", card_index, e);
+                }
+            }
+            Err(e) => {
+                eprintln!(
+                    "❌ Failed to connect to live-save database at {}: {}",
+                    cache_path.display(),
+                    e
+                );
+            }
+        }
+    }
+
     pub fn refresh_schema_text(&mut self) {
         let Some(deck) = &self.deck else {
             self.raw_schema_text.clear();
@@ -176,33 +241,91 @@ impl MFlashStudioApp {
     }
 
     pub fn save_deck(&mut self) {
-        if self.path.is_empty() {
+        let Some(workspace_id) = self.active_workspace_id.clone() else {
+            self.json_error = Some("Save Error: No active mflash-core workspace.".to_string());
             return;
+        };
+
+        // 0. FLUSH PENDING EDITS
+        // If the user is actively typing in the Visual Editor and hits Ctrl+S,
+        // force the selected card into SQLite before exporting deck.pb.
+        if self.workspace == Workspace::VisualEditor {
+            self.sync_card_to_core(self.selected_index);
         }
 
+        // If the user is editing raw schema text, parse that into the deck first.
         if self.workspace == Workspace::SchemaEditor && !self.sync_text_to_deck() {
             return;
         }
 
-        let Some(deck) = &self.deck else {
-            self.json_error = Some("Save Error: No deck loaded.".to_string());
+        let cache_dir = if let Some(db_path) = &self.active_db_path {
+            db_path
+                .parent()
+                .map(std::path::Path::to_path_buf)
+                .or_else(|| {
+                    dirs::home_dir().map(|home| home.join(".mflash_cache").join(&workspace_id))
+                })
+        } else {
+            dirs::home_dir().map(|home| home.join(".mflash_cache").join(&workspace_id))
+        };
+
+        let Some(cache_dir) = cache_dir else {
+            self.json_error = Some("Save Error: Could not find home/cache directory.".to_string());
             return;
         };
 
-        let json_text = match serde_json::to_string_pretty(deck) {
-            Ok(json_text) => json_text,
+        println!("💾 Initiating universal save sequence...");
+
+        // 1. Export DB -> Protobuf
+        let conn = match mflash_core::db::init_workspace_db(&cache_dir) {
+            Ok(conn) => conn,
             Err(e) => {
-                self.json_error = Some(format!("Save Error: {}", e));
+                self.json_error = Some(format!("Save Error: Failed to connect to DB: {}", e));
                 return;
             }
         };
 
-        match crate::archive::save_mflash(&self.path, &self.path, &json_text) {
+        let pb_deck = match mflash_core::db::export_db_to_pb(&conn) {
+            Ok(pb_deck) => pb_deck,
+            Err(e) => {
+                self.json_error =
+                    Some(format!("Save Error: Failed to compile DB to Protobuf: {}", e));
+                return;
+            }
+        };
+
+        // 2. Write deck.pb into the workspace
+        if let Err(e) = mflash_core::schema::write_deck(&cache_dir, &pb_deck) {
+            self.json_error = Some(format!("Save Error: Failed to write deck.pb: {}", e));
+            return;
+        }
+
+        // 3. Choose output path
+        let output_path = if self.path.is_empty() {
+            let Some(save_path) = rfd::FileDialog::new()
+                .add_filter("mflash decks", &["mflash"])
+                .save_file()
+            else {
+                return;
+            };
+
+            self.path = save_path.to_string_lossy().to_string();
+            save_path
+        } else {
+            std::path::PathBuf::from(&self.path)
+        };
+
+        // 4. Pack workspace -> .mflash
+        match mflash_core::workspace::pack_deck(&workspace_id, &output_path) {
             Ok(_) => {
+                println!("✅ Deck saved successfully to {}", output_path.display());
                 self.json_error = None;
                 self.sfx.play(crate::sfx::SoundEffect::Save);
             }
-            Err(e) => self.json_error = Some(format!("Save Error: {}", e)),
+            Err(e) => {
+                eprintln!("❌ Failed to pack deck: {}", e);
+                self.json_error = Some(format!("Save Error: Failed to pack deck: {}", e));
+            }
         }
     }
 
@@ -379,6 +502,8 @@ fn main() -> eframe::Result<()> {
                 json_error: None,
                 active_workspace_id: None,
                 active_schema_json: None,
+                enable_live_save: true,
+                active_db_path: None,
                 workspace: Workspace::Browse,
                 active_schema_format: SchemaFormat::Json,
                 selected_index: 0,

@@ -338,7 +338,9 @@ fn render_asset_preview(
                     .rounding(egui::Rounding::same(2.0)),
             );
 
-            response.on_hover_text("Open this card in Visual Editor").clicked()
+            response
+                .on_hover_text("Open this card in Visual Editor")
+                .clicked()
         } else {
             render_asset_icon_button(ui, asset, "Preview unavailable. Open this card anyway.")
         }
@@ -350,11 +352,7 @@ fn render_asset_preview(
 fn render_asset_icon_button(ui: &mut egui::Ui, asset: &AssetRow, tooltip: &str) -> bool {
     let response = ui.add_sized(
         [THUMB_SIZE, THUMB_SIZE],
-        egui::Button::new(
-            egui::RichText::new(asset.kind.icon())
-                .size(28.0)
-                .strong(),
-        ),
+        egui::Button::new(egui::RichText::new(asset.kind.icon()).size(28.0).strong()),
     );
 
     response.on_hover_text(tooltip).clicked()

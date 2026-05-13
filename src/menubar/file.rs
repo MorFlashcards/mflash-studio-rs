@@ -27,7 +27,8 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                             Ok(mut conn) => {
                                 // If the unpacked workspace has a deck.pb, sync it into SQLite first.
                                 if let Ok(deck) = mflash_core::schema::read_deck(&cache_dir) {
-                                    if let Err(e) = mflash_core::db::import_pb_to_db(&mut conn, &deck) {
+                                    if let Err(e) = mflash_core::db::import_pb_to_db(&mut conn, &deck)
+                                    {
                                         eprintln!("Failed to sync deck.pb into SQLite: {}", e);
                                         return;
                                     }
@@ -51,10 +52,13 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
 
                                                 // 5. Sync the text into the Rust structs!
                                                 if app.sync_text_to_deck() {
-                                                    println!("✅ Successfully synced engine data to UI structs!");
+                                                    println!(
+                                                        "✅ Successfully synced engine data to UI structs!"
+                                                    );
                                                 } else {
-                                                    eprintln!("❌ Failed to parse engine JSON into UI structs!");
-                                                    // Print the exact Serde error so we know what to fix!
+                                                    eprintln!(
+                                                        "❌ Failed to parse engine JSON into UI structs!"
+                                                    );
                                                     eprintln!("Serde Error: {:?}", app.json_error);
                                                 }
                                             }
@@ -78,6 +82,82 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                     }
                     Err(e) => {
                         eprintln!("Engine failed to unpack deck: {}", e);
+                    }
+                }
+            }
+        }
+
+        if ui.button("📥 Import CSV Deck...").clicked() {
+            ui.close_menu();
+
+            // 1. Pop open the native OS file picker looking ONLY for .csv files
+            if let Some(file_path) = FileDialog::new()
+                .add_filter("CSV Files", &["csv"])
+                .pick_file()
+            {
+                println!("Importing CSV: {}", file_path.display());
+
+                // 2. Generate a new workspace for this imported data
+                let workspace_id = Uuid::new_v4().to_string();
+                let home = dirs::home_dir().expect("Could not find home dir");
+                let cache_dir = home.join(".mflash_cache").join(&workspace_id);
+
+                if let Err(e) = std::fs::create_dir_all(&cache_dir) {
+                    eprintln!("❌ Failed to create cache dir: {}", e);
+                    return;
+                }
+
+                // 3. Fire up the Core Engine's Importer
+                match mflash_core::importer::from_csv(&file_path) {
+                    Ok(mut imported_deck) => {
+                        // Polish: Make the deck title match the CSV filename
+                        if let Some(stem) = file_path.file_stem().and_then(|s| s.to_str()) {
+                            imported_deck.title = stem.to_string();
+                        }
+
+                        // 4. Connect to SQLite and write the data via high-speed transaction
+                        match mflash_core::db::init_workspace_db(&cache_dir) {
+                            Ok(mut conn) => {
+                                if let Err(e) =
+                                    mflash_core::db::import_pb_to_db(&mut conn, &imported_deck)
+                                {
+                                    eprintln!("❌ Failed to import CSV deck into SQLite: {}", e);
+                                    return;
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("❌ Failed to initialize workspace database: {}", e);
+                                return;
+                            }
+                        }
+
+                        // 5. Generate the JSON dump for the Schema Editor
+                        match mflash_core::translator::to_json(&imported_deck) {
+                            Ok(json_dump) => {
+                                // 6. Update the GUI's memory
+                                app.active_workspace_id = Some(workspace_id);
+                                app.active_schema_json = Some(json_dump.clone());
+
+                                app.path = file_path.display().to_string();
+                                app.active_schema_format = crate::SchemaFormat::Json;
+                                app.raw_schema_text = json_dump;
+                                app.json_error = None;
+
+                                // 7. Sync the text into the Rust structs so the Browse tab populates
+                                if app.sync_text_to_deck() {
+                                    println!("✅ Successfully imported CSV and synced UI!");
+                                } else {
+                                    eprintln!("❌ Failed to parse engine JSON into UI structs!");
+                                    eprintln!("Serde Error: {:?}", app.json_error);
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("❌ Failed to translate imported deck to JSON: {}", e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("❌ Engine failed to parse CSV: {}", e);
                     }
                 }
             }
