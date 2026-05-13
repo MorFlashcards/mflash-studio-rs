@@ -79,7 +79,7 @@ pub struct Card {
     pub lexical: Option<LexicalInfo>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum CardKind {
     Basic,
@@ -87,6 +87,42 @@ pub enum CardKind {
     Listening,
     MediaPrompt,
     Cloze,
+}
+
+// 🚀 THE UNIVERSAL TRANSLATOR FOR CARD KIND
+impl<'de> Deserialize<'de> for CardKind {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        // A hidden helper that accepts either a number or a string
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum CardKindHelper {
+            Num(i32),
+            Str(String),
+        }
+
+        match CardKindHelper::deserialize(deserializer)? {
+            // 1. Handle the raw integers coming from the mflash-core Protobuf engine
+            CardKindHelper::Num(n) => match n {
+                1 => Ok(CardKind::Basic),
+                2 => Ok(CardKind::ImageOcclusion),
+                3 => Ok(CardKind::Listening),
+                4 => Ok(CardKind::MediaPrompt),
+                5 => Ok(CardKind::Cloze),
+                _ => Ok(CardKind::Basic), // Fallback
+            },
+            // 2. Handle the strings coming from old JSON files or human manual-typing
+            CardKindHelper::Str(s) => match s.as_str() {
+                "image_occlusion" => Ok(CardKind::ImageOcclusion),
+                "listening" => Ok(CardKind::Listening),
+                "media_prompt" => Ok(CardKind::MediaPrompt),
+                "cloze" => Ok(CardKind::Cloze),
+                _ => Ok(CardKind::Basic), // Fallback for "basic" or unknown strings
+            },
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

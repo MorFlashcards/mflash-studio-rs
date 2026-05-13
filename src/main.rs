@@ -45,6 +45,13 @@ pub struct MFlashStudioApp {
     pub deck: Option<models::MFlashDeck>,
     pub raw_schema_text: String,
     pub json_error: Option<String>,
+
+    /// The UUID of the currently extracted engine workspace
+    pub active_workspace_id: Option<String>,
+
+    /// The live JSON dump from the SQLite database
+    pub active_schema_json: Option<String>,
+
     pub workspace: Workspace,
     pub active_schema_format: SchemaFormat,
     pub selected_index: usize,
@@ -370,6 +377,8 @@ fn main() -> eframe::Result<()> {
                 deck,
                 raw_schema_text,
                 json_error: None,
+                active_workspace_id: None,
+                active_schema_json: None,
                 workspace: Workspace::Browse,
                 active_schema_format: SchemaFormat::Json,
                 selected_index: 0,

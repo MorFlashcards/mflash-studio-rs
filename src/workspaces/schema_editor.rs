@@ -93,6 +93,22 @@ fn build_find_regex(app: &MFlashStudioApp) -> Option<regex::Regex> {
     builder.build().ok()
 }
 
+fn hydrate_editor_from_active_schema_json(app: &mut MFlashStudioApp) {
+    if app.active_schema_format != SchemaFormat::Json || !app.raw_schema_text.trim().is_empty() {
+        return;
+    }
+
+    if let Some(json_text) = &app.active_schema_json {
+        app.raw_schema_text = json_text.clone();
+    }
+}
+
+fn sync_editor_to_active_schema_json(app: &mut MFlashStudioApp) {
+    if app.active_schema_format == SchemaFormat::Json && app.active_schema_json.is_some() {
+        app.active_schema_json = Some(app.raw_schema_text.clone());
+    }
+}
+
 pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
     let mut go_back = false;
     let mut apply_changes = false;
@@ -116,6 +132,20 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
     });
 
     ui.separator();
+
+    if app.active_schema_json.is_none() {
+        ui.centered_and_justified(|ui| {
+            ui.heading("No deck loaded. Go to File -> Open Deck...");
+        });
+
+        if go_back {
+            app.workspace = crate::Workspace::Browse;
+        }
+
+        return;
+    }
+
+    hydrate_editor_from_active_schema_json(app);
 
     if app.find_visible {
         egui::Frame::window(ui.style()).show(ui, |ui| {
@@ -262,6 +292,7 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
 
         if format_clicked {
             app.refresh_schema_text();
+            sync_editor_to_active_schema_json(app);
 
             if app.find_visible {
                 update_find_matches(app);
@@ -277,6 +308,7 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
                         Ok(value) => {
                             if let Ok(formatted) = serde_json::to_string_pretty(&value) {
                                 app.raw_schema_text = formatted;
+                                sync_editor_to_active_schema_json(app);
                                 app.json_error = None;
 
                                 if app.find_visible {
@@ -326,8 +358,12 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
 
             let response = output.response.clone();
 
-            if response.changed() && app.find_visible {
-                update_find_matches(app);
+            if response.changed() {
+                sync_editor_to_active_schema_json(app);
+
+                if app.find_visible {
+                    update_find_matches(app);
+                }
             }
 
             if let Some(range) = output.cursor_range {
@@ -463,6 +499,8 @@ pub fn render(app: &mut MFlashStudioApp, ui: &mut egui::Ui) {
             });
         });
     });
+
+    sync_editor_to_active_schema_json(app);
 
     if apply_changes {
         app.sync_text_to_deck();
