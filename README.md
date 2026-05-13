@@ -210,7 +210,10 @@ workspace_browse = "Ctrl+2"
 workspace_visual_editor = "Ctrl+3"
 workspace_media = "Ctrl+4"
 workspace_schema_editor = "Ctrl+5"
-Development
+
+--
+
+## Development
 
 Run the app locally:
 
